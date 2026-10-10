@@ -25,5 +25,11 @@
 	"entitycounter.config.coordinates": "Show coordinates",
 	"entitycounter.config.coordinates.desc": "Shows the position of the counted block in the panel.",
 	"entitycounter.config.reset": "Reset to default",
-	"entitycounter.config.reset_all": "Reset all"
+	"entitycounter.config.reset_all": "Reset all",
+	"entitycounter.config.position": "Display position",
+	"entitycounter.config.position.desc": "Drag the panel to any spot on the screen.",
+	"entitycounter.config.position.edit": "Move...",
+	"entitycounter.position.title": "Move the display",
+	"entitycounter.position.hint": "Drag the panel to where you want it",
+	"entitycounter.position.reset": "Reset position"
 }

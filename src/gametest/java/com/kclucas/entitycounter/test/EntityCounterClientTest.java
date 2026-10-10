@@ -3,6 +3,7 @@ package com.kclucas.entitycounter.test;
 import com.kclucas.entitycounter.client.EntityCounterClient;
 import com.kclucas.entitycounter.client.EntityCounterConfigScreen;
 import com.kclucas.entitycounter.client.EntityScan;
+import com.kclucas.entitycounter.client.HudPositionScreen;
 import com.kclucas.entitycounter.client.TargetMode;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
@@ -103,13 +104,46 @@ public class EntityCounterClientTest implements FabricClientGameTest {
 			server.runCommand("summon minecraft:slime " + AT + " {NoAI:1b,Size:0}");
 			server.runCommand("summon minecraft:minecart " + AT + " {NoGravity:1b}");
 			server.runCommand("summon minecraft:item " + AT
-					+ " {Item:{id:\"minecraft:diamond\",count:1},PickupDelay:32767,NoGravity:1b}");
+					+ " {Item:{id:\"minecraft:diamond\",count:5},PickupDelay:32767,NoGravity:1b}");
 			context.waitTicks(40);
 
 			scan = context.computeOnClient(c -> EntityCounterClient.getScan());
-			expect(scan, 21, 5);
+			// 15 Armadillos + 3 Hühner + Slime + Lore + ein Stapel aus 5 Diamanten.
+			expect(scan, 25, 5);
+			EntityScan.Entry diamonds = scan.entries().stream()
+					.filter(e -> e.type() == EntityType.ITEM).findFirst().orElseThrow();
+			if (diamonds.count() != 5 || !diamonds.name().getString().equals("Diamond")) {
+				throw new AssertionError("Erwartet \"Diamond: 5\", bekommen: "
+						+ diamonds.name().getString() + ": " + diamonds.count());
+			}
 			calm(context);
 			context.takeScreenshot("entitycounter-2-gemischt");
+
+			// Anzeige verschieben: Screen öffnen und das Beispiel mit der Maus nach rechts unten ziehen.
+			context.setScreen(() -> new HudPositionScreen(null));
+			context.waitTicks(5);
+			context.takeScreenshot("entitycounter-2b-verschieben-start");
+			context.getInput().setCursorPos(120, 90);
+			context.waitTicks(2);
+			context.getInput().holdMouse(GLFW.GLFW_MOUSE_BUTTON_LEFT);
+			context.waitTicks(2);
+			context.getInput().moveCursor(1400, 700);
+			context.waitTicks(2);
+			context.getInput().releaseMouse(GLFW.GLFW_MOUSE_BUTTON_LEFT);
+			context.waitTicks(5);
+			float movedX = context.computeOnClient(c -> EntityCounterClient.getConfig().hudX);
+			float movedY = context.computeOnClient(c -> EntityCounterClient.getConfig().hudY);
+			if (movedX < 0.3F || movedY < 0.3F || movedX > 0.95F || movedY > 0.95F) {
+				throw new AssertionError("Ziehen hat die Anzeige nicht wie erwartet verschoben: " + movedX + " / " + movedY);
+			}
+			context.takeScreenshot("entitycounter-2c-verschieben-gezogen");
+			context.runOnClient(c -> c.setScreen(null));
+			context.waitTicks(10);
+			context.takeScreenshot("entitycounter-2d-anzeige-verschoben");
+			context.runOnClient(c -> {
+				EntityCounterClient.getConfig().hudX = 0.0F;
+				EntityCounterClient.getConfig().hudY = 0.0F;
+			});
 
 			// Vom Block weg in den Himmel schauen: kein Ziel mehr.
 			server.runCommand("tp @a 0.5 201 1.5 180 -60");

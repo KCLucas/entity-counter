@@ -36,12 +36,20 @@ You choose which block the counter uses:
 - **Counted block** - the mode from the table above
 - **Highlight counted block** - the green glow, on or off
 - **Show coordinates** - show the position of the counted block in the panel
+- **Display position** - drag the panel to any spot on the screen
 
 Open the settings through [Mod Menu](https://modrinth.com/mod/modmenu), or bind a key to *Open Settings* under *Options → Controls → Key Binds → Entity Counter*. The F7 key can be changed there too. Mod Menu is optional.
+
+### Moving the display
+
+Click **Move...** in the settings, then drag the panel to where you want it. The background is dimmed and the panel shows an example with three mobs, so you can see how much room it takes.
+
+![Dragging the display to a new position](images/move.png)
 
 ## Good to know
 
 - An entity belongs to the block its feet are in, so every entity is counted exactly once, even if its hitbox reaches into neighbouring blocks.
+- Dropped items are listed by their real name and count with their stack size, so a stack of 5 diamonds shows as "Diamond: 5".
 - Works up to 32 blocks away.
 - The panel hides while the F3 debug screen is open.
 - Purely client-side: works on any server, nothing needs to be installed there.

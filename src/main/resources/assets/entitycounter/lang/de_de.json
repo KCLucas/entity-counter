@@ -25,5 +25,11 @@
 	"entitycounter.config.coordinates": "Koordinaten anzeigen",
 	"entitycounter.config.coordinates.desc": "Zeigt die Position des gezählten Blocks im Panel.",
 	"entitycounter.config.reset": "Auf Standard zurücksetzen",
-	"entitycounter.config.reset_all": "Alles zurücksetzen"
+	"entitycounter.config.reset_all": "Alles zurücksetzen",
+	"entitycounter.config.position": "Position der Anzeige",
+	"entitycounter.config.position.desc": "Zieh die Anzeige an eine beliebige Stelle des Bildschirms.",
+	"entitycounter.config.position.edit": "Verschieben...",
+	"entitycounter.position.title": "Anzeige verschieben",
+	"entitycounter.position.hint": "Zieh die Anzeige dorthin, wo du sie haben willst",
+	"entitycounter.position.reset": "Position zurücksetzen"
 }

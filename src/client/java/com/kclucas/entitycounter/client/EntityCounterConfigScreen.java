@@ -48,7 +48,7 @@ public class EntityCounterConfigScreen extends Screen {
 
 	private final @Nullable Screen parent;
 	private final HeaderAndFooterLayout layout = new HeaderAndFooterLayout(this);
-	private final List<OptionRow<?>> options = new ArrayList<>();
+	private final List<Runnable> resetters = new ArrayList<>();
 	private @Nullable OptionList list;
 
 	public EntityCounterConfigScreen(@Nullable Screen parent) {
@@ -60,7 +60,7 @@ public class EntityCounterConfigScreen extends Screen {
 	protected void init() {
 		EntityCounterConfig config = EntityCounterClient.getConfig();
 		EntityCounterConfig defaults = new EntityCounterConfig();
-		this.options.clear();
+		this.resetters.clear();
 
 		this.layout.addTitleHeader(this.title, this.font);
 
@@ -76,11 +76,12 @@ public class EntityCounterConfigScreen extends Screen {
 				config.highlightBlock, defaults.highlightBlock, value -> config.highlightBlock = value));
 		list.add(toggle("entitycounter.config.coordinates",
 				config.showCoordinates, defaults.showCoordinates, value -> config.showCoordinates = value));
+		list.add(new PositionRow());
 		this.list = this.layout.addToContents(list);
 
 		LinearLayout footer = this.layout.addToFooter(LinearLayout.horizontal().spacing(8));
 		footer.addChild(Button.builder(Component.translatable("entitycounter.config.reset_all"),
-				button -> this.options.forEach(OptionRow::reset)).width(150).build());
+				button -> this.resetters.forEach(Runnable::run)).width(150).build());
 		footer.addChild(Button.builder(CommonComponents.GUI_DONE, button -> onClose()).width(150).build());
 
 		this.layout.visitWidgets(this::addRenderableWidget);
@@ -98,7 +99,7 @@ public class EntityCounterConfigScreen extends Screen {
 		OptionRow<T> row = new OptionRow<>(label, description, defaultValue, setter);
 		row.control = builder.displayOnlyValue().create(0, 0, CONTROL_WIDTH, 20, label, (button, value) -> row.apply(value));
 		row.refresh();
-		this.options.add(row);
+		this.resetters.add(row::reset);
 		return row;
 	}
 
@@ -213,6 +214,94 @@ public class EntityCounterConfigScreen extends Screen {
 		}
 	}
 
+	/** Gemeinsames Aussehen aller Einstellungs-Zeilen: Text links, Bedienelement und Zurücksetzen-Knopf rechts. */
+	private void renderOption(Row row, GuiGraphics graphics, Component label, Component description,
+			AbstractWidget control, Button resetButton, int mouseX, int mouseY, boolean hovered, float partialTick) {
+		if (hovered) {
+			graphics.fill(row.getContentX() - 4, row.getContentY() - 1,
+					row.getContentRight() + 4, row.getContentBottom() + 1, COLOR_ROW_HOVER);
+		}
+
+		int buttonY = row.getContentY() + (row.getContentHeight() - 20) / 2;
+		resetButton.setX(row.getContentRight() - RESET_WIDTH);
+		resetButton.setY(buttonY);
+		control.setX(resetButton.getX() - GAP - CONTROL_WIDTH);
+		control.setY(buttonY);
+
+		int textWidth = control.getX() - 10 - row.getContentX();
+		List<FormattedCharSequence> lines = this.font.split(description, textWidth);
+		int shown = Math.min(lines.size(), 2);
+		int textY = row.getContentY() + (row.getContentHeight() - (11 + shown * 9)) / 2;
+		graphics.drawString(this.font, label, row.getContentX(), textY, COLOR_LABEL, true);
+		for (int i = 0; i < shown; i++) {
+			graphics.drawString(this.font, lines.get(i), row.getContentX(), textY + 11 + i * 9, COLOR_DESCRIPTION, false);
+		}
+
+		control.render(graphics, mouseX, mouseY, partialTick);
+		resetButton.render(graphics, mouseX, mouseY, partialTick);
+		drawResetIcon(graphics, resetButton.getX() + (RESET_WIDTH - 7) / 2, buttonY + 6,
+				resetButton.active ? COLOR_LABEL : 0xFF6B6F75);
+	}
+
+	private Button createResetButton(Runnable action) {
+		return Button.builder(Component.empty(), button -> action.run())
+				.size(RESET_WIDTH, 20)
+				.tooltip(Tooltip.create(Component.translatable("entitycounter.config.reset")))
+				.build();
+	}
+
+	/** Öffnet den Screen, in dem man die Anzeige mit der Maus an ihren Platz zieht. */
+	private class PositionRow extends Row {
+		private final Component label = Component.translatable("entitycounter.config.position");
+		private final Component description = Component.translatable("entitycounter.config.position.desc");
+		private final Button editButton;
+		private final Button resetButton;
+
+		PositionRow() {
+			this.editButton = Button.builder(Component.translatable("entitycounter.config.position.edit"),
+					button -> EntityCounterConfigScreen.this.minecraft.setScreen(
+							new HudPositionScreen(EntityCounterConfigScreen.this)))
+					.size(CONTROL_WIDTH, 20).build();
+			this.resetButton = createResetButton(this::reset);
+			EntityCounterConfigScreen.this.resetters.add(this::reset);
+		}
+
+		private void reset() {
+			EntityCounterConfig config = EntityCounterClient.getConfig();
+			config.hudX = 0.0F;
+			config.hudY = 0.0F;
+		}
+
+		@Override
+		int height() {
+			return OPTION_HEIGHT;
+		}
+
+		@Override
+		public void renderContent(GuiGraphics graphics, int mouseX, int mouseY, boolean hovered, float partialTick) {
+			EntityCounterConfig config = EntityCounterClient.getConfig();
+			this.resetButton.active = config.hudX != 0.0F || config.hudY != 0.0F;
+			renderOption(this, graphics, this.label, this.description,
+					this.editButton, this.resetButton, mouseX, mouseY, hovered, partialTick);
+		}
+
+		@Override
+		public List<? extends GuiEventListener> children() {
+			return List.of(this.editButton, this.resetButton);
+		}
+
+		@Override
+		public List<? extends NarratableEntry> narratables() {
+			return List.of(this.editButton, this.resetButton);
+		}
+
+		@Override
+		public void visitWidgets(Consumer<AbstractWidget> consumer) {
+			consumer.accept(this.editButton);
+			consumer.accept(this.resetButton);
+		}
+	}
+
 	/** Eine Einstellung: Name und Erklärung links, Schalter und Zurücksetzen-Knopf rechts. */
 	private class OptionRow<T> extends Row {
 		private final Component label;
@@ -227,10 +316,7 @@ public class EntityCounterConfigScreen extends Screen {
 			this.description = description;
 			this.defaultValue = defaultValue;
 			this.setter = setter;
-			this.resetButton = Button.builder(Component.empty(), button -> reset())
-					.size(RESET_WIDTH, 20)
-					.tooltip(Tooltip.create(Component.translatable("entitycounter.config.reset")))
-					.build();
+			this.resetButton = createResetButton(this::reset);
 		}
 
 		void apply(T value) {
@@ -255,31 +341,8 @@ public class EntityCounterConfigScreen extends Screen {
 
 		@Override
 		public void renderContent(GuiGraphics graphics, int mouseX, int mouseY, boolean hovered, float partialTick) {
-			Font font = EntityCounterConfigScreen.this.font;
-			if (hovered) {
-				graphics.fill(getContentX() - 4, getContentY() - 1, getContentRight() + 4, getContentBottom() + 1,
-						COLOR_ROW_HOVER);
-			}
-
-			int buttonY = getContentY() + (getContentHeight() - 20) / 2;
-			this.resetButton.setX(getContentRight() - RESET_WIDTH);
-			this.resetButton.setY(buttonY);
-			this.control.setX(this.resetButton.getX() - GAP - CONTROL_WIDTH);
-			this.control.setY(buttonY);
-
-			int textWidth = this.control.getX() - 10 - getContentX();
-			List<FormattedCharSequence> lines = font.split(this.description.apply(this.control.getValue()), textWidth);
-			int shown = Math.min(lines.size(), 2);
-			int textY = getContentY() + (getContentHeight() - (11 + shown * 9)) / 2;
-			graphics.drawString(font, this.label, getContentX(), textY, COLOR_LABEL, true);
-			for (int i = 0; i < shown; i++) {
-				graphics.drawString(font, lines.get(i), getContentX(), textY + 11 + i * 9, COLOR_DESCRIPTION, false);
-			}
-
-			this.control.render(graphics, mouseX, mouseY, partialTick);
-			this.resetButton.render(graphics, mouseX, mouseY, partialTick);
-			drawResetIcon(graphics, this.resetButton.getX() + (RESET_WIDTH - 7) / 2, buttonY + 6,
-					this.resetButton.active ? COLOR_LABEL : 0xFF6B6F75);
+			renderOption(this, graphics, this.label, this.description.apply(this.control.getValue()),
+					this.control, this.resetButton, mouseX, mouseY, hovered, partialTick);
 		}
 
 		@Override

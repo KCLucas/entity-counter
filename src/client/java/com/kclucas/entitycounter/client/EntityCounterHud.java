@@ -15,6 +15,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.SpawnEggItem;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
+import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -36,43 +37,74 @@ public final class EntityCounterHud {
 	private EntityCounterHud() {
 	}
 
+	/** Eine Zeile der Anzeige. Ohne {@code entity} wird stattdessen {@code icon} als Bild gezeichnet. */
+	public record Row(@Nullable Entity entity, ItemStack icon, Component name, int count) {
+	}
+
+	/** Wo die Anzeige zuletzt gezeichnet wurde, in GUI-Pixeln. */
+	public record Bounds(int x, int y, int width, int height) {
+		public boolean contains(double px, double py) {
+			return px >= this.x && px < this.x + this.width && py >= this.y && py < this.y + this.height;
+		}
+	}
+
 	public static void render(GuiGraphics graphics, DeltaTracker deltaTracker) {
 		if (!EntityCounterClient.isEnabled()) {
 			return;
 		}
 		Minecraft client = Minecraft.getInstance();
 		// Das F3-Menü liegt an derselben Stelle – dann Platz machen.
-		if (client.options.hideGui || client.gui.getDebugOverlay().showDebugScreen()) {
+		// Beim Verschieben zeigt der Screen selbst ein Beispiel.
+		if (client.options.hideGui || client.gui.getDebugOverlay().showDebugScreen()
+				|| client.screen instanceof HudPositionScreen) {
 			return;
 		}
 
-		Font font = client.font;
+		EntityCounterConfig config = EntityCounterClient.getConfig();
 		EntityScan scan = EntityCounterClient.getScan();
 		BlockPos pos = scan.pos();
 
-		Component title = Component.translatable("entitycounter.hud.title");
-		Component subtitle = pos == null
-				? Component.translatable("entitycounter.hud.no_target")
-				: Component.literal(pos.getX() + ", " + pos.getY() + ", " + pos.getZ());
-
-		List<Component> rows = new ArrayList<>();
-		for (EntityScan.Entry entry : scan.entries()) {
-			rows.add(Component.empty()
-					.append(entry.type().getDescription())
-					.append(Component.literal(": "))
-					.append(Component.literal(Integer.toString(entry.count())).withColor(COLOR_COUNT)));
+		// Ohne Ziel bleibt die Zeile als Hinweis stehen, sonst zeigt sie die Koordinaten (abschaltbar).
+		Component subtitle = null;
+		if (pos == null) {
+			subtitle = Component.translatable("entitycounter.hud.no_target");
+		} else if (config.showCoordinates) {
+			subtitle = Component.literal(pos.getX() + ", " + pos.getY() + ", " + pos.getZ());
 		}
 
-		// Ohne Ziel bleibt die Zeile als Hinweis stehen, sonst zeigt sie die Koordinaten (abschaltbar).
-		boolean showSubtitle = pos == null || EntityCounterClient.getConfig().showCoordinates;
-		boolean showEmpty = pos != null && rows.isEmpty();
+		List<Row> rows = new ArrayList<>();
+		for (EntityScan.Entry entry : scan.entries()) {
+			rows.add(new Row(entry.sample(), ItemStack.EMPTY, entry.name(), entry.count()));
+		}
+
+		renderPanel(graphics, client, subtitle, rows, pos != null, scan.total(), config.hudX, config.hudY);
+	}
+
+	/**
+	 * Zeichnet die Anzeige an der Position {@code fractionX}/{@code fractionY} (Anteil des freien Platzes, 0 bis 1)
+	 * und gibt zurück, wo sie gelandet ist.
+	 */
+	public static Bounds renderPanel(GuiGraphics graphics, Minecraft client, @Nullable Component subtitle,
+			List<Row> rows, boolean hasTarget, int totalCount, float fractionX, float fractionY) {
+		Font font = client.font;
+		Component title = Component.translatable("entitycounter.hud.title");
+
+		List<Component> texts = new ArrayList<>();
+		for (Row row : rows) {
+			texts.add(Component.empty()
+					.append(row.name())
+					.append(Component.literal(": "))
+					.append(Component.literal(Integer.toString(row.count())).withColor(COLOR_COUNT)));
+		}
+
+		boolean showEmpty = hasTarget && rows.isEmpty();
 		boolean showTotal = rows.size() > 1;
 		Component empty = Component.translatable("entitycounter.hud.empty");
-		Component total = Component.translatable("entitycounter.hud.total", scan.total());
+		Component total = Component.translatable("entitycounter.hud.total", totalCount);
 
-		int width = Math.max(font.width(title), showSubtitle ? font.width(subtitle) : 0);
-		for (Component row : rows) {
-			width = Math.max(width, ICON_SIZE + 4 + font.width(row));
+		int width = Math.max(font.width(title), subtitle != null ? font.width(subtitle) : 0);
+		for (Component text : texts) {
+			width = Math.max(width, ICON_SIZE + 4 + font.width(text));
 		}
 		if (showEmpty) {
 			width = Math.max(width, font.width(empty));
@@ -81,35 +113,46 @@ public final class EntityCounterHud {
 			width = Math.max(width, font.width(total));
 		}
 
-		int height = LINE_HEIGHT * (showSubtitle ? 2 : 1) + rows.size() * ROW_HEIGHT
+		int height = LINE_HEIGHT * (subtitle != null ? 2 : 1) + rows.size() * ROW_HEIGHT
 				+ (showEmpty ? LINE_HEIGHT : 0) + (showTotal ? LINE_HEIGHT + 2 : 0);
 		if (!rows.isEmpty()) {
 			height += 2;
 		}
 
-		int x = MARGIN + PADDING;
-		int y = MARGIN + PADDING;
-		graphics.fill(MARGIN, MARGIN, x + width + PADDING, y + height + PADDING - 2, COLOR_BACKGROUND);
+		int boxWidth = width + PADDING * 2;
+		int boxHeight = height + PADDING * 2 - 2;
+		int left = MARGIN + Math.round(fractionX * Math.max(0, graphics.guiWidth() - boxWidth - MARGIN * 2));
+		int top = MARGIN + Math.round(fractionY * Math.max(0, graphics.guiHeight() - boxHeight - MARGIN * 2));
+		Bounds bounds = new Bounds(left, top, boxWidth, boxHeight);
 
+		graphics.fill(left, top, left + boxWidth, top + boxHeight, COLOR_BACKGROUND);
+
+		int x = left + PADDING;
+		int y = top + PADDING;
 		graphics.drawString(font, title, x, y, COLOR_TITLE, true);
 		y += LINE_HEIGHT;
-		if (showSubtitle) {
+		if (subtitle != null) {
 			graphics.drawString(font, subtitle, x, y, COLOR_MUTED, true);
 			y += LINE_HEIGHT;
 		}
 
 		if (showEmpty) {
 			graphics.drawString(font, empty, x, y, COLOR_MUTED, true);
-			return;
+			return bounds;
 		}
 		if (rows.isEmpty()) {
-			return;
+			return bounds;
 		}
 
 		y += 2;
 		for (int i = 0; i < rows.size(); i++) {
-			renderIcon(graphics, client, scan.entries().get(i).sample(), x, y);
-			graphics.drawString(font, rows.get(i), x + ICON_SIZE + 4, y + (ICON_SIZE - 8) / 2, COLOR_TEXT, true);
+			Row row = rows.get(i);
+			if (row.entity() != null) {
+				renderIcon(graphics, client, row.entity(), x, y);
+			} else {
+				graphics.renderItem(row.icon(), x, y);
+			}
+			graphics.drawString(font, texts.get(i), x + ICON_SIZE + 4, y + (ICON_SIZE - 8) / 2, COLOR_TEXT, true);
 			y += ROW_HEIGHT;
 		}
 
@@ -117,6 +160,7 @@ public final class EntityCounterHud {
 			y += 2;
 			graphics.drawString(font, total, x, y, COLOR_MUTED, true);
 		}
+		return bounds;
 	}
 
 	/** Zeichnet das Bild eines Entities: bei Items das Item selbst, sonst das 3D-Modell wie im Inventar. */

@@ -24,6 +24,12 @@ public class EntityCounterConfig {
 	public TargetMode targetMode = TargetMode.AUTO;
 	/** Die Koordinaten des gezählten Blocks im HUD anzeigen. */
 	public boolean showCoordinates = true;
+	/**
+	 * Position der Anzeige als Anteil des freien Platzes: 0 = ganz links/oben, 1 = ganz rechts/unten.
+	 * So bleibt sie bei jeder Fenstergröße und GUI-Skalierung an derselben Ecke bzw. Kante.
+	 */
+	public float hudX = 0.0F;
+	public float hudY = 0.0F;
 
 	public static EntityCounterConfig load() {
 		if (Files.exists(PATH)) {

@@ -4,8 +4,10 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.projectile.ProjectileUtil;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.AABB;
@@ -34,8 +36,11 @@ public record EntityScan(@Nullable BlockPos pos, List<Entry> entries, int total)
 	private static final double RANGE = 32.0;
 	private static final double STEP = 0.05;
 
-	/** Ein Entity-Typ mit Anzahl; {@code sample} ist ein Vertreter davon für das Bild im HUD. */
-	public record Entry(EntityType<?> type, Entity sample, int count) {
+	/**
+	 * Eine Zeile der Anzeige: ein Entity-Typ mit Anzahl; {@code sample} ist ein Vertreter davon für das Bild.
+	 * Liegende Items werden nach Item-Art getrennt geführt und zählen mit ihrer Stapelgröße.
+	 */
+	public record Entry(EntityType<?> type, Component name, Entity sample, int count) {
 	}
 
 	public static EntityScan compute(Minecraft client, TargetMode mode) {
@@ -60,22 +65,36 @@ public record EntityScan(@Nullable BlockPos pos, List<Entry> entries, int total)
 			return NONE;
 		}
 
-		Map<EntityType<?>, List<Entity>> byType = new LinkedHashMap<>();
+		// Mehrere gleiche Items verschmelzen im Spiel zu einem einzigen Item-Entity mit Stapelgröße.
+		// Deshalb gruppieren wir Items nach Item-Art und zählen die Stapelgröße statt der Entities.
+		Map<Object, List<Entity>> groups = new LinkedHashMap<>();
 		for (Entity entity : byBlock.getOrDefault(target, List.of())) {
-			byType.computeIfAbsent(entity.getType(), t -> new ArrayList<>()).add(entity);
+			Object key = entity instanceof ItemEntity item ? item.getItem().getItem() : entity.getType();
+			groups.computeIfAbsent(key, k -> new ArrayList<>()).add(entity);
 		}
 
 		List<Entry> entries = new ArrayList<>();
 		int total = 0;
-		for (Map.Entry<EntityType<?>, List<Entity>> e : byType.entrySet()) {
-			List<Entity> list = e.getValue();
-			entries.add(new Entry(e.getKey(), list.get(0), list.size()));
-			total += list.size();
+		for (List<Entity> group : groups.values()) {
+			Entity first = group.get(0);
+			Component name;
+			int count;
+			if (first instanceof ItemEntity item) {
+				name = item.getItem().getItemName();
+				count = 0;
+				for (Entity entity : group) {
+					count += ((ItemEntity) entity).getItem().getCount();
+				}
+			} else {
+				name = first.getType().getDescription();
+				count = group.size();
+			}
+			entries.add(new Entry(first.getType(), name, first, count));
+			total += count;
 		}
 		entries.sort((a, b) -> {
 			int byCount = Integer.compare(b.count(), a.count());
-			return byCount != 0 ? byCount
-					: a.type().getDescription().getString().compareTo(b.type().getDescription().getString());
+			return byCount != 0 ? byCount : a.name().getString().compareTo(b.name().getString());
 		});
 
 		return new EntityScan(target.immutable(), List.copyOf(entries), total);

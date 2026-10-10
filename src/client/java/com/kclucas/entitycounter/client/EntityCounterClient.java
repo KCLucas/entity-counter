@@ -6,8 +6,11 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
+import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext;
+import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
+import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import org.lwjgl.glfw.GLFW;
@@ -20,6 +23,8 @@ public class EntityCounterClient implements ClientModInitializer {
 			KeyMapping.Category.register(Identifier.fromNamespaceAndPath(MOD_ID, "main"));
 
 	private static KeyMapping toggleKey;
+	private static KeyMapping settingsKey;
+	private static EntityCounterConfig config = new EntityCounterConfig();
 	private static boolean enabled = false;
 	private static EntityScan scan = EntityScan.NONE;
 
@@ -31,15 +36,25 @@ public class EntityCounterClient implements ClientModInitializer {
 		return scan;
 	}
 
+	public static EntityCounterConfig getConfig() {
+		return config;
+	}
+
 	@Override
 	public void onInitializeClient() {
+		config = EntityCounterConfig.load();
+
 		toggleKey = KeyBindingHelper.registerKeyBinding(new KeyMapping(
 				"key.entitycounter.toggle", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_F7, CATEGORY));
+		settingsKey = KeyBindingHelper.registerKeyBinding(new KeyMapping(
+				"key.entitycounter.settings", InputConstants.Type.KEYSYM, InputConstants.UNKNOWN.getValue(), CATEGORY));
 
 		ClientTickEvents.END_CLIENT_TICK.register(this::onClientTick);
 
 		HudElementRegistry.attachElementBefore(VanillaHudElements.CHAT,
 				Identifier.fromNamespaceAndPath(MOD_ID, "hud"), EntityCounterHud::render);
+
+		WorldRenderEvents.BEFORE_TRANSLUCENT.register(EntityCounterClient::highlightTarget);
 	}
 
 	private void onClientTick(Minecraft client) {
@@ -50,12 +65,26 @@ public class EntityCounterClient implements ClientModInitializer {
 						enabled ? "entitycounter.toggle.on" : "entitycounter.toggle.off"), true);
 			}
 		}
+		while (settingsKey.consumeClick()) {
+			if (client.screen == null) {
+				client.setScreen(new EntityCounterConfigScreen(null));
+			}
+		}
 
 		if (!enabled || client.player == null || client.level == null) {
 			scan = EntityScan.NONE;
 			return;
 		}
 
-		scan = EntityScan.compute(client);
+		scan = EntityScan.compute(client, config.targetMode);
+	}
+
+	/** Markiert den gerade gezählten Block in der Welt. */
+	private static void highlightTarget(WorldRenderContext context) {
+		BlockPos pos = scan.pos();
+		if (!enabled || !config.highlightBlock || pos == null) {
+			return;
+		}
+		BlockHighlightRenderer.render(context, pos);
 	}
 }

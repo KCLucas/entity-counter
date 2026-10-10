@@ -7,8 +7,11 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.projectile.ProjectileUtil;
+import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 
@@ -35,7 +38,7 @@ public record EntityScan(@Nullable BlockPos pos, List<Entry> entries, int total)
 	public record Entry(EntityType<?> type, Entity sample, int count) {
 	}
 
-	public static EntityScan compute(Minecraft client) {
+	public static EntityScan compute(Minecraft client, TargetMode mode) {
 		LocalPlayer player = client.player;
 		ClientLevel level = client.level;
 		if (player == null || level == null) {
@@ -50,6 +53,52 @@ public record EntityScan(@Nullable BlockPos pos, List<Entry> entries, int total)
 			byBlock.computeIfAbsent(entity.blockPosition(), p -> new ArrayList<>()).add(entity);
 		}
 
+		BlockPos target = mode == TargetMode.AUTO
+				? findAutoTarget(player, level, byBlock)
+				: findCrosshairTarget(player, level, mode);
+		if (target == null) {
+			return NONE;
+		}
+
+		Map<EntityType<?>, List<Entity>> byType = new LinkedHashMap<>();
+		for (Entity entity : byBlock.getOrDefault(target, List.of())) {
+			byType.computeIfAbsent(entity.getType(), t -> new ArrayList<>()).add(entity);
+		}
+
+		List<Entry> entries = new ArrayList<>();
+		int total = 0;
+		for (Map.Entry<EntityType<?>, List<Entity>> e : byType.entrySet()) {
+			List<Entity> list = e.getValue();
+			entries.add(new Entry(e.getKey(), list.get(0), list.size()));
+			total += list.size();
+		}
+		entries.sort((a, b) -> {
+			int byCount = Integer.compare(b.count(), a.count());
+			return byCount != 0 ? byCount
+					: a.type().getDescription().getString().compareTo(b.type().getDescription().getString());
+		});
+
+		return new EntityScan(target.immutable(), List.copyOf(entries), total);
+	}
+
+	/** Der Block unter dem Fadenkreuz bzw. sein Nachbar davor oder dahinter – wie die normale Blockauswahl. */
+	private static @Nullable BlockPos findCrosshairTarget(LocalPlayer player, ClientLevel level, TargetMode mode) {
+		Vec3 eye = player.getEyePosition(1.0F);
+		Vec3 end = eye.add(player.getViewVector(1.0F).scale(RANGE));
+		BlockHitResult hit = level.clip(new ClipContext(
+				eye, end, ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, player));
+		if (hit.getType() != HitResult.Type.BLOCK) {
+			return null;
+		}
+		return switch (mode) {
+			case IN_FRONT -> hit.getBlockPos().relative(hit.getDirection());
+			case BEHIND -> hit.getBlockPos().relative(hit.getDirection().getOpposite());
+			default -> hit.getBlockPos();
+		};
+	}
+
+	private static @Nullable BlockPos findAutoTarget(
+			LocalPlayer player, ClientLevel level, Map<BlockPos, List<Entity>> byBlock) {
 		Vec3 eye = player.getEyePosition(1.0F);
 		Vec3 look = player.getViewVector(1.0F);
 
@@ -81,36 +130,9 @@ public record EntityScan(@Nullable BlockPos pos, List<Entry> entries, int total)
 		EntityHitResult hit = ProjectileUtil.getEntityHitResult(
 				player, eye, end, searchBox, e -> !e.isSpectator(), reach * reach);
 
-		BlockPos target;
 		if (hit != null) {
-			target = hit.getEntity().blockPosition();
-		} else if (firstOccupied != null) {
-			target = firstOccupied;
-		} else {
-			target = solid;
+			return hit.getEntity().blockPosition();
 		}
-		if (target == null) {
-			return NONE;
-		}
-
-		Map<EntityType<?>, List<Entity>> byType = new LinkedHashMap<>();
-		for (Entity entity : byBlock.getOrDefault(target, List.of())) {
-			byType.computeIfAbsent(entity.getType(), t -> new ArrayList<>()).add(entity);
-		}
-
-		List<Entry> entries = new ArrayList<>();
-		int total = 0;
-		for (Map.Entry<EntityType<?>, List<Entity>> e : byType.entrySet()) {
-			List<Entity> list = e.getValue();
-			entries.add(new Entry(e.getKey(), list.get(0), list.size()));
-			total += list.size();
-		}
-		entries.sort((a, b) -> {
-			int byCount = Integer.compare(b.count(), a.count());
-			return byCount != 0 ? byCount
-					: a.type().getDescription().getString().compareTo(b.type().getDescription().getString());
-		});
-
-		return new EntityScan(target.immutable(), List.copyOf(entries), total);
+		return firstOccupied != null ? firstOccupied : solid;
 	}
 }

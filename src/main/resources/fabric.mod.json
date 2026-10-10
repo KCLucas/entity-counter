@@ -11,10 +11,14 @@
 		"sources": "https://github.com/KCLucas/entity-counter"
 	},
 	"license": "MIT",
+	"icon": "assets/entitycounter/icon.png",
 	"environment": "client",
 	"entrypoints": {
 		"client": [
 			"com.kclucas.entitycounter.client.EntityCounterClient"
+		],
+		"modmenu": [
+			"com.kclucas.entitycounter.client.ModMenuIntegration"
 		]
 	},
 	"depends": {
@@ -22,5 +26,8 @@
 		"minecraft": "~1.21.11",
 		"java": ">=21",
 		"fabric-api": "*"
+	},
+	"suggests": {
+		"modmenu": "*"
 	}
 }

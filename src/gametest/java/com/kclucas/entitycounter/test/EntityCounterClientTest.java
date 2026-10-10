@@ -1,11 +1,14 @@
 package com.kclucas.entitycounter.test;
 
 import com.kclucas.entitycounter.client.EntityCounterClient;
+import com.kclucas.entitycounter.client.EntityCounterConfigScreen;
 import com.kclucas.entitycounter.client.EntityScan;
+import com.kclucas.entitycounter.client.TargetMode;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.EntityType;
 import org.lwjgl.glfw.GLFW;
@@ -26,11 +29,24 @@ public class EntityCounterClientTest implements FabricClientGameTest {
 
 			server.runCommand("gamemode creative @a");
 			server.runCommand("time set noon");
-			server.runCommand("fill -3 200 -3 3 200 9 minecraft:stone");
+			// WQHD-Auflösung, damit die Screenshots auch für die Mod-Seite taugen.
+			context.getInput().resizeWindow(2560, 1440);
+			context.runOnClient(c -> {
+				c.options.fov().set(90);
+				c.options.guiScale().set(3);
+				c.resizeDisplay();
+			});
+			server.runCommand("fill -7 200 -4 7 200 9 minecraft:smooth_stone");
+			server.runCommand("fill -7 200 7 7 205 9 minecraft:deepslate_bricks");
+			server.runCommand("fill -7 201 7 7 201 7 minecraft:polished_deepslate");
+			server.runCommand("fill -1 200 4 1 200 6 minecraft:polished_deepslate");
 			server.runCommand("fill -1 201 4 1 202 6 minecraft:glass");
+			server.runCommand("fill -1 203 4 1 203 6 minecraft:smooth_stone_slab");
 			server.runCommand("setblock 0 201 5 minecraft:air");
 			server.runCommand("setblock 0 202 5 minecraft:air");
-			server.runCommand("tp @a 0.5 201 0.5 0 15");
+			server.runCommand("setblock -3 201 6 minecraft:lantern");
+			server.runCommand("setblock 3 201 6 minecraft:lantern");
+			server.runCommand("tp @a 0.5 201 1.5 0 19");
 			for (int i = 0; i < 15; i++) {
 				server.runCommand("summon minecraft:armadillo " + AT + " {NoAI:1b,PersistenceRequired:1b}");
 			}
@@ -53,7 +69,33 @@ public class EntityCounterClientTest implements FabricClientGameTest {
 			if (scan.entries().get(0).type() != EntityType.ARMADILLO || scan.entries().get(0).count() != 15) {
 				throw new AssertionError("Erwartet 15 Armadillos, bekommen: " + scan);
 			}
+			calm(context);
 			context.takeScreenshot("entitycounter-1-armadillos");
+
+			// Die festen Zielmodi: der Spieler schaut auf den Glasblock direkt vor der Kammer.
+			expectMode(context, TargetMode.LOOKED_AT, CHAMBER.north(), 0);
+			expectMode(context, TargetMode.IN_FRONT, CHAMBER.north(2), 0);
+			context.takeScreenshot("entitycounter-1b-block-davor");
+			expectMode(context, TargetMode.BEHIND, CHAMBER, 15);
+			expectMode(context, TargetMode.AUTO, CHAMBER, 15);
+
+			// Mod Menu muss den Einstellungs-Screen der Mod finden.
+			boolean registered = FabricLoader.getInstance().isModLoaded("modmenu")
+					&& FabricLoader.getInstance().getEntrypoints("modmenu", Object.class).stream()
+							.anyMatch(e -> e.getClass().getName().endsWith("entitycounter.client.ModMenuIntegration"));
+			if (!registered) {
+				throw new AssertionError("Mod-Menu-Einstiegspunkt wurde nicht geladen");
+			}
+			context.setScreen(() -> new EntityCounterConfigScreen(null));
+			context.waitTicks(5);
+			context.takeScreenshot("entitycounter-1c-einstellungen");
+			context.runOnClient(c -> EntityCounterClient.getConfig().targetMode = TargetMode.BEHIND);
+			context.setScreen(() -> new EntityCounterConfigScreen(null));
+			context.waitTicks(5);
+			context.takeScreenshot("entitycounter-1d-einstellungen-geaendert");
+			context.runOnClient(c -> EntityCounterClient.getConfig().targetMode = TargetMode.AUTO);
+			context.runOnClient(c -> c.setScreen(null));
+			context.waitTicks(5);
 
 			for (int i = 0; i < 3; i++) {
 				server.runCommand("summon minecraft:chicken " + AT + " {NoAI:1b}");
@@ -66,10 +108,11 @@ public class EntityCounterClientTest implements FabricClientGameTest {
 
 			scan = context.computeOnClient(c -> EntityCounterClient.getScan());
 			expect(scan, 21, 5);
+			calm(context);
 			context.takeScreenshot("entitycounter-2-gemischt");
 
 			// Vom Block weg in den Himmel schauen: kein Ziel mehr.
-			server.runCommand("tp @a 0.5 201 0.5 180 -60");
+			server.runCommand("tp @a 0.5 201 1.5 180 -60");
 			context.waitTicks(20);
 			scan = context.computeOnClient(c -> EntityCounterClient.getScan());
 			if (scan.pos() != null) {
@@ -82,6 +125,22 @@ public class EntityCounterClientTest implements FabricClientGameTest {
 			if (context.computeOnClient(c -> EntityCounterClient.isEnabled())) {
 				throw new AssertionError("F7 hat den Counter nicht ausgeschaltet");
 			}
+		}
+	}
+
+	/** Wartet, bis die Statusmeldung ausgeblendet ist, und leert den Chat – für aufgeräumte Screenshots. */
+	private static void calm(ClientGameTestContext context) {
+		context.waitTicks(80);
+		context.runOnClient(c -> c.gui.getChat().clearMessages(false));
+		context.waitTicks(5);
+	}
+
+	private static void expectMode(ClientGameTestContext context, TargetMode mode, BlockPos pos, int total) {
+		context.runOnClient(c -> EntityCounterClient.getConfig().targetMode = mode);
+		context.waitTicks(5);
+		EntityScan scan = context.computeOnClient(c -> EntityCounterClient.getScan());
+		if (!pos.equals(scan.pos()) || scan.total() != total) {
+			throw new AssertionError("Modus " + mode + ": erwartet " + total + " bei " + pos + ", bekommen: " + scan);
 		}
 	}
 

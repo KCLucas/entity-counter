@@ -63,12 +63,14 @@ public final class EntityCounterHud {
 					.append(Component.literal(Integer.toString(entry.count())).withColor(COLOR_COUNT)));
 		}
 
+		// Ohne Ziel bleibt die Zeile als Hinweis stehen, sonst zeigt sie die Koordinaten (abschaltbar).
+		boolean showSubtitle = pos == null || EntityCounterClient.getConfig().showCoordinates;
 		boolean showEmpty = pos != null && rows.isEmpty();
 		boolean showTotal = rows.size() > 1;
 		Component empty = Component.translatable("entitycounter.hud.empty");
 		Component total = Component.translatable("entitycounter.hud.total", scan.total());
 
-		int width = Math.max(font.width(title), font.width(subtitle));
+		int width = Math.max(font.width(title), showSubtitle ? font.width(subtitle) : 0);
 		for (Component row : rows) {
 			width = Math.max(width, ICON_SIZE + 4 + font.width(row));
 		}
@@ -79,7 +81,7 @@ public final class EntityCounterHud {
 			width = Math.max(width, font.width(total));
 		}
 
-		int height = LINE_HEIGHT * 2 + rows.size() * ROW_HEIGHT
+		int height = LINE_HEIGHT * (showSubtitle ? 2 : 1) + rows.size() * ROW_HEIGHT
 				+ (showEmpty ? LINE_HEIGHT : 0) + (showTotal ? LINE_HEIGHT + 2 : 0);
 		if (!rows.isEmpty()) {
 			height += 2;
@@ -91,8 +93,10 @@ public final class EntityCounterHud {
 
 		graphics.drawString(font, title, x, y, COLOR_TITLE, true);
 		y += LINE_HEIGHT;
-		graphics.drawString(font, subtitle, x, y, COLOR_MUTED, true);
-		y += LINE_HEIGHT;
+		if (showSubtitle) {
+			graphics.drawString(font, subtitle, x, y, COLOR_MUTED, true);
+			y += LINE_HEIGHT;
+		}
 
 		if (showEmpty) {
 			graphics.drawString(font, empty, x, y, COLOR_MUTED, true);

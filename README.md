@@ -6,31 +6,53 @@ Client-side Fabric mod for Minecraft **1.21.11** that counts the entities standi
 
 ## Why
 
-Some farms need an exact number of mobs packed into a single 1x1 space - for example a slime farm that needs exactly 15 armadillos. Counting them by eye is impossible once they overlap. Entity Counter shows the number instantly.
+Some farms need an exact number of mobs packed into a single 1x1 space - for example a slime farm that needs exactly 15 armadillos. Once they overlap you cannot count them by eye. Entity Counter shows the number instantly.
 
 ## How to use
 
 1. Press **F7** to turn the counter on or off.
 2. Look at the block (or at a mob standing in it).
-3. The panel in the top-left corner lists every entity type in that block with a picture, its name and how many there are.
+3. The panel in the top-left corner lists every entity type in that block with a picture, its name and how many there are. The counted block glows green in the world, so you always see which block is meant.
 
 ![Several entity types in one block](images/mixed.png)
 
-The key can be changed under *Options → Controls → Key Binds → Entity Counter*.
+## Which block is counted
 
-## Details
+You choose which block the counter uses:
+
+| Mode | Counts |
+| --- | --- |
+| **Automatic** (default) | Sees through glass and other see-through blocks and picks the first block that contains entities. Best for closed farm chambers. |
+| **Block you look at** | Exactly the block under your crosshair. |
+| **Block in front** | The block in front of the one you look at. |
+| **Block behind** | The block directly behind the one you look at. |
+
+![Block in front mode](images/block-in-front.png)
+
+## Settings
+
+![Settings screen](images/settings.png)
+
+- **Counted block** - the mode from the table above
+- **Highlight counted block** - the green glow, on or off
+- **Show coordinates** - show the position of the counted block in the panel
+
+Open the settings through [Mod Menu](https://modrinth.com/mod/modmenu), or bind a key to *Open Settings* under *Options → Controls → Key Binds → Entity Counter*. The F7 key can be changed there too. Mod Menu is optional.
+
+## Good to know
 
 - An entity belongs to the block its feet are in, so every entity is counted exactly once, even if its hitbox reaches into neighbouring blocks.
-- Glass, fences, hoppers and other see-through blocks do not block the view, so you can count mobs inside a closed chamber.
 - Works up to 32 blocks away.
 - The panel hides while the F3 debug screen is open.
 - Purely client-side: works on any server, nothing needs to be installed there.
+- English and German translations.
 
 ## Requirements
 
 - Minecraft 1.21.11
 - [Fabric Loader](https://fabricmc.net/use/installer/) 0.19.2 or newer
 - [Fabric API](https://modrinth.com/mod/fabric-api)
+- Optional: [Mod Menu](https://modrinth.com/mod/modmenu) for the settings button
 
 ## Building
 
@@ -38,7 +60,7 @@ The key can be changed under *Options → Controls → Key Binds → Entity Coun
 ./gradlew build
 ```
 
-The mod jar is written to `build/libs/`. `./gradlew runClientGameTest` starts a real client, builds a test chamber and checks the counts automatically.
+The mod jar is written to `build/libs/`. `./gradlew runClientGameTest` starts a real client, builds a test chamber, checks the counts automatically and takes the screenshots used on this page.
 
 ## License
 

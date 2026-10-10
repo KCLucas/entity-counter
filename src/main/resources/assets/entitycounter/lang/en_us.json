@@ -1,0 +1,10 @@
+{
+	"key.category.entitycounter.main": "Entity Counter",
+	"key.entitycounter.toggle": "Toggle Entity Counter",
+	"entitycounter.hud.title": "Entity Counter",
+	"entitycounter.hud.no_target": "No block targeted",
+	"entitycounter.hud.empty": "No entities",
+	"entitycounter.hud.total": "Total: %s",
+	"entitycounter.toggle.on": "Entity Counter: ON",
+	"entitycounter.toggle.off": "Entity Counter: OFF"
+}

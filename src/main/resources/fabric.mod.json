@@ -1,0 +1,26 @@
+{
+	"schemaVersion": 1,
+	"id": "entitycounter",
+	"version": "${version}",
+	"name": "Entity Counter",
+	"description": "Press a hotkey (default: F7) to see how many entities of each type are standing in the block you are looking at.",
+	"authors": [
+		"kclucas"
+	],
+	"contact": {
+		"sources": "https://github.com/KCLucas/entity-counter"
+	},
+	"license": "MIT",
+	"environment": "client",
+	"entrypoints": {
+		"client": [
+			"com.kclucas.entitycounter.client.EntityCounterClient"
+		]
+	},
+	"depends": {
+		"fabricloader": ">=0.19.2",
+		"minecraft": "~1.21.11",
+		"java": ">=21",
+		"fabric-api": "*"
+	}
+}

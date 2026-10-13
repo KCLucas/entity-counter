@@ -2,6 +2,7 @@ package com.kclucas.entitycounter.test;
 
 import com.kclucas.entitycounter.client.EntityCounterClient;
 import com.kclucas.entitycounter.client.EntityCounterConfigScreen;
+import com.kclucas.entitycounter.client.EntityCounterHud;
 import com.kclucas.entitycounter.client.EntityScan;
 import com.kclucas.entitycounter.client.HudPositionScreen;
 import com.kclucas.entitycounter.client.TargetMode;
@@ -11,6 +12,8 @@ import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
 import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.client.gui.components.debug.DebugScreenEntries;
+import net.minecraft.client.gui.components.debug.DebugScreenEntryStatus;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.EntityType;
 import org.lwjgl.glfw.GLFW;
@@ -83,6 +86,29 @@ public class EntityCounterClientTest implements FabricClientGameTest {
 			}
 			calm(context);
 			context.takeScreenshot("entitycounter-1-armadillos");
+
+			// Dauerhaft eingeblendete Debug-Einträge (F3+F6) dürfen die Anzeige nicht verstecken, das volle F3-Menü schon.
+			context.runOnClient(c -> {
+				c.debugEntries.setStatus(DebugScreenEntries.CHUNK_BORDERS, DebugScreenEntryStatus.ALWAYS_ON);
+				c.debugEntries.setStatus(DebugScreenEntries.LOOKING_AT_ENTITY, DebugScreenEntryStatus.ALWAYS_ON);
+			});
+			context.waitTicks(10);
+			if (!context.computeOnClient(c -> c.gui.getDebugOverlay().showDebugScreen())
+					|| context.computeOnClient(EntityCounterHud::isHidden)) {
+				throw new AssertionError("Mit dauerhaft eingeblendeten Debug-Einträgen muss die Anzeige sichtbar bleiben");
+			}
+			context.takeScreenshot("entitycounter-1a-debug-eintraege-an");
+			context.runOnClient(c -> c.debugEntries.setOverlayVisible(true));
+			context.waitTicks(5);
+			if (!context.computeOnClient(EntityCounterHud::isHidden)) {
+				throw new AssertionError("Bei offenem F3-Menü sollte die Anzeige ausgeblendet sein");
+			}
+			context.runOnClient(c -> {
+				c.debugEntries.setOverlayVisible(false);
+				c.debugEntries.setStatus(DebugScreenEntries.CHUNK_BORDERS, DebugScreenEntryStatus.NEVER);
+				c.debugEntries.setStatus(DebugScreenEntries.LOOKING_AT_ENTITY, DebugScreenEntryStatus.IN_OVERLAY);
+			});
+			context.waitTicks(5);
 
 			// Die festen Zielmodi: der Spieler schaut auf den Glasblock direkt vor der Kammer.
 			expectMode(context, TargetMode.LOOKED_AT, CHAMBER.north(), 0);

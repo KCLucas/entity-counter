@@ -53,10 +53,7 @@ public final class EntityCounterHud {
 			return;
 		}
 		Minecraft client = Minecraft.getInstance();
-		// Das F3-Menü liegt an derselben Stelle – dann Platz machen.
-		// Beim Verschieben zeigt der Screen selbst ein Beispiel.
-		if (client.options.hideGui || client.gui.getDebugOverlay().showDebugScreen()
-				|| client.screen instanceof HudPositionScreen) {
+		if (isHidden(client)) {
 			return;
 		}
 
@@ -78,6 +75,17 @@ public final class EntityCounterHud {
 		}
 
 		renderPanel(graphics, client, subtitle, rows, pos != null, scan.total(), config.hudX, config.hudY);
+	}
+
+	/**
+	 * Ausgeblendet wird die Anzeige bei F1, beim Verschieben (der Screen zeigt dort selbst ein Beispiel) und wenn
+	 * das volle F3-Menü offen ist. Einzelne Debug-Einträge, die über F3+F6 dauerhaft eingeblendet sind
+	 * (z. B. Chunk-Grenzen oder "Looking at"), zählen bewusst nicht dazu – sonst wäre die Anzeige für alle,
+	 * die so etwas immer anhaben, nie zu sehen.
+	 */
+	public static boolean isHidden(Minecraft client) {
+		return client.options.hideGui || client.debugEntries.isOverlayVisible()
+				|| client.screen instanceof HudPositionScreen;
 	}
 
 	/**

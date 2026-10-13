@@ -36,7 +36,7 @@
 	"entitycounter.tutorial.count.title": "Zähl, was in einem Block steht",
 	"entitycounter.tutorial.count.text": "Drück %s und schau einen Block an. Die Anzeige listet jedes Entity darin mit Bild, Name und Anzahl auf, und der gezählte Block leuchtet grün.",
 	"entitycounter.tutorial.modes.title": "Wähl, welcher Block gezählt wird",
-	"entitycounter.tutorial.modes.text": "Automatisch schaut durch Glas in geschlossene Kammern. Du kannst aber auch genau den angeschauten Block zählen, den davor oder den dahinter.",
+	"entitycounter.tutorial.modes.text": "Automatisch schaut durch Glas in geschlossene Kammern. Du kannst aber auch genau den angeschauten Block zählen, den davor oder den dahinter. Den Modus wählst du in den Einstellungen unter \"Gezählter Block\".",
 	"entitycounter.tutorial.settings.title": "Mach es zu deinem",
 	"entitycounter.tutorial.settings.text": "Wechsle den Modus, schalte die grüne Markierung aus oder zieh die Anzeige an eine andere Stelle. Die Einstellungen öffnest du über Mod Menu oder mit einer Taste unter Steuerung > Entity Counter.",
 	"entitycounter.config.section.help": "Hilfe",

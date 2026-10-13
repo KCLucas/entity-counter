@@ -36,7 +36,7 @@
 	"entitycounter.tutorial.count.title": "Count what is in a block",
 	"entitycounter.tutorial.count.text": "Press %s and look at a block. The panel lists every entity in it with picture, name and count, and the counted block glows green.",
 	"entitycounter.tutorial.modes.title": "Choose which block is counted",
-	"entitycounter.tutorial.modes.text": "Automatic sees through glass into closed chambers. You can also count exactly the block you look at, the one in front of it or the one behind it.",
+	"entitycounter.tutorial.modes.text": "Automatic sees through glass into closed chambers. You can also count exactly the block you look at, the one in front of it or the one behind it. Pick the mode in the settings under \"Counted block\".",
 	"entitycounter.tutorial.settings.title": "Make it yours",
 	"entitycounter.tutorial.settings.text": "Switch the mode, turn the green highlight off or drag the display to another spot. Open the settings through Mod Menu, or bind a key under Controls > Entity Counter.",
 	"entitycounter.config.section.help": "Help",

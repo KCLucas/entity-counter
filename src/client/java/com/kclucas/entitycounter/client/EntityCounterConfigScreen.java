@@ -1,5 +1,6 @@
 package com.kclucas.entitycounter.client;
 
+import com.kclucas.entitycounter.client.onboarding.Onboarding;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -77,6 +78,9 @@ public class EntityCounterConfigScreen extends Screen {
 		list.add(toggle("entitycounter.config.coordinates",
 				config.showCoordinates, defaults.showCoordinates, value -> config.showCoordinates = value));
 		list.add(new PositionRow());
+
+		list.add(new SectionRow(Component.translatable("entitycounter.config.section.help")));
+		list.add(new TutorialRow());
 		this.list = this.layout.addToContents(list);
 
 		LinearLayout footer = this.layout.addToFooter(LinearLayout.horizontal().spacing(8));
@@ -216,17 +220,22 @@ public class EntityCounterConfigScreen extends Screen {
 
 	/** Gemeinsames Aussehen aller Einstellungs-Zeilen: Text links, Bedienelement und Zurücksetzen-Knopf rechts. */
 	private void renderOption(Row row, GuiGraphics graphics, Component label, Component description,
-			AbstractWidget control, Button resetButton, int mouseX, int mouseY, boolean hovered, float partialTick) {
+			AbstractWidget control, @Nullable Button resetButton, int mouseX, int mouseY, boolean hovered,
+			float partialTick) {
 		if (hovered) {
 			graphics.fill(row.getContentX() - 4, row.getContentY() - 1,
 					row.getContentRight() + 4, row.getContentBottom() + 1, COLOR_ROW_HOVER);
 		}
 
+		// Auch Zeilen ohne Zurücksetzen-Knopf halten dessen Platz frei, damit alle Bedienelemente in einer Spalte stehen.
 		int buttonY = row.getContentY() + (row.getContentHeight() - 20) / 2;
-		resetButton.setX(row.getContentRight() - RESET_WIDTH);
-		resetButton.setY(buttonY);
-		control.setX(resetButton.getX() - GAP - CONTROL_WIDTH);
+		int resetX = row.getContentRight() - RESET_WIDTH;
+		control.setX(resetX - GAP - CONTROL_WIDTH);
 		control.setY(buttonY);
+		if (resetButton != null) {
+			resetButton.setX(resetX);
+			resetButton.setY(buttonY);
+		}
 
 		int textWidth = control.getX() - 10 - row.getContentX();
 		List<FormattedCharSequence> lines = this.font.split(description, textWidth);
@@ -238,9 +247,11 @@ public class EntityCounterConfigScreen extends Screen {
 		}
 
 		control.render(graphics, mouseX, mouseY, partialTick);
-		resetButton.render(graphics, mouseX, mouseY, partialTick);
-		drawResetIcon(graphics, resetButton.getX() + (RESET_WIDTH - 7) / 2, buttonY + 6,
-				resetButton.active ? COLOR_LABEL : 0xFF6B6F75);
+		if (resetButton != null) {
+			resetButton.render(graphics, mouseX, mouseY, partialTick);
+			drawResetIcon(graphics, resetButton.getX() + (RESET_WIDTH - 7) / 2, buttonY + 6,
+					resetButton.active ? COLOR_LABEL : 0xFF6B6F75);
+		}
 	}
 
 	private Button createResetButton(Runnable action) {
@@ -248,6 +259,40 @@ public class EntityCounterConfigScreen extends Screen {
 				.size(RESET_WIDTH, 20)
 				.tooltip(Tooltip.create(Component.translatable("entitycounter.config.reset")))
 				.build();
+	}
+
+	/** Zeigt die kurze Tour durch die Mod noch einmal. */
+	private class TutorialRow extends Row {
+		private final Component label = Component.translatable("entitycounter.config.tutorial");
+		private final Component description = Component.translatable("entitycounter.config.tutorial.desc");
+		private final Button showButton = Button.builder(Component.translatable("entitycounter.config.tutorial.show"),
+				button -> Onboarding.open(EntityCounterClient.MOD_ID)).size(CONTROL_WIDTH, 20).build();
+
+		@Override
+		int height() {
+			return OPTION_HEIGHT;
+		}
+
+		@Override
+		public void renderContent(GuiGraphics graphics, int mouseX, int mouseY, boolean hovered, float partialTick) {
+			renderOption(this, graphics, this.label, this.description, this.showButton, null,
+					mouseX, mouseY, hovered, partialTick);
+		}
+
+		@Override
+		public List<? extends GuiEventListener> children() {
+			return List.of(this.showButton);
+		}
+
+		@Override
+		public List<? extends NarratableEntry> narratables() {
+			return List.of(this.showButton);
+		}
+
+		@Override
+		public void visitWidgets(Consumer<AbstractWidget> consumer) {
+			consumer.accept(this.showButton);
+		}
 	}
 
 	/** Öffnet den Screen, in dem man die Anzeige mit der Maus an ihren Platz zieht. */

@@ -1,5 +1,6 @@
 package com.kclucas.entitycounter.client;
 
+import com.kclucas.entitycounter.client.onboarding.Onboarding;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -8,12 +9,15 @@ import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import org.lwjgl.glfw.GLFW;
+
+import java.util.List;
 
 public class EntityCounterClient implements ClientModInitializer {
 
@@ -55,6 +59,31 @@ public class EntityCounterClient implements ClientModInitializer {
 				Identifier.fromNamespaceAndPath(MOD_ID, "hud"), EntityCounterHud::render);
 
 		WorldRenderEvents.BEFORE_TRANSLUCENT.register(EntityCounterClient::highlightTarget);
+
+		Onboarding.register(createTutorial());
+	}
+
+	/** Die kurze Tour, die beim ersten Start in einem Profil erscheint. */
+	private static Onboarding.Tutorial createTutorial() {
+		Component toggleKeyName = Component.keybind("key.entitycounter.toggle").withStyle(ChatFormatting.YELLOW);
+		return new Onboarding.Tutorial(MOD_ID,
+				Component.literal("Entity Counter"),
+				Component.translatable("entitycounter.tutorial.description"),
+				Identifier.fromNamespaceAndPath(MOD_ID, "icon.png"),
+				1,
+				List.of(
+						new Onboarding.Page(
+								Component.translatable("entitycounter.tutorial.count.title"),
+								Component.translatable("entitycounter.tutorial.count.text", toggleKeyName),
+								Identifier.fromNamespaceAndPath(MOD_ID, "textures/tutorial/count.png")),
+						new Onboarding.Page(
+								Component.translatable("entitycounter.tutorial.modes.title"),
+								Component.translatable("entitycounter.tutorial.modes.text"),
+								Identifier.fromNamespaceAndPath(MOD_ID, "textures/tutorial/modes.png")),
+						new Onboarding.Page(
+								Component.translatable("entitycounter.tutorial.settings.title"),
+								Component.translatable("entitycounter.tutorial.settings.text"),
+								Identifier.fromNamespaceAndPath(MOD_ID, "textures/tutorial/settings.png"))));
 	}
 
 	private void onClientTick(Minecraft client) {

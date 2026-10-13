@@ -5,6 +5,9 @@
 	"name": "Entity Counter Test",
 	"environment": "client",
 	"entrypoints": {
+		"client": [
+			"com.kclucas.entitycounter.test.TestTutorials"
+		],
 		"fabric-client-gametest": [
 			"com.kclucas.entitycounter.test.EntityCounterClientTest"
 		]

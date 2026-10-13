@@ -46,6 +46,12 @@ Click **Move...** in the settings, then drag the panel to where you want it. The
 
 ![Dragging the display to a new position](https://raw.githubusercontent.com/KCLucas/entity-counter/master/images/move.png)
 
+## Welcome tour
+
+The first time you start a profile with this mod, a short tour shows how it works - with Back and Next buttons and a Skip button that is always there. It only appears once. You can open it again under *Settings → Help → Tutorial*. If you use several mods by KCLucas, they share one tour and you can pick which ones you want to see.
+
+![Welcome tour](https://raw.githubusercontent.com/KCLucas/entity-counter/master/images/tour.png)
+
 ## Good to know
 
 - An entity belongs to the block its feet are in, so every entity is counted exactly once, even if its hitbox reaches into neighbouring blocks.

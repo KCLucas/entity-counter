@@ -5,6 +5,7 @@ import com.kclucas.entitycounter.client.EntityCounterConfigScreen;
 import com.kclucas.entitycounter.client.EntityScan;
 import com.kclucas.entitycounter.client.HudPositionScreen;
 import com.kclucas.entitycounter.client.TargetMode;
+import com.kclucas.entitycounter.client.onboarding.OnboardingScreen;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerContext;
@@ -13,6 +14,9 @@ import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.EntityType;
 import org.lwjgl.glfw.GLFW;
+
+import java.io.IOException;
+import java.nio.file.Files;
 
 /**
  * Baut eine kleine Kammer hinter Glas, setzt Entities in genau einen Block und prüft,
@@ -25,6 +29,13 @@ public class EntityCounterClientTest implements FabricClientGameTest {
 
 	@Override
 	public void runTest(ClientGameTestContext context) {
+		context.getInput().resizeWindow(2560, 1440);
+		context.runOnClient(c -> {
+			c.options.guiScale().set(3);
+			c.resizeDisplay();
+		});
+		testOnboarding(context);
+
 		try (TestSingleplayerContext world = context.worldBuilder().create()) {
 			TestServerContext server = world.getServer();
 
@@ -159,6 +170,59 @@ public class EntityCounterClientTest implements FabricClientGameTest {
 			if (context.computeOnClient(c -> EntityCounterClient.isEnabled())) {
 				throw new AssertionError("F7 hat den Counter nicht ausgeschaltet");
 			}
+		}
+	}
+
+	/**
+	 * Erster Start im Profil: Der Willkommens-Screen erscheint von selbst im Hauptmenü und führt durch beide
+	 * angemeldeten Mods (Entity Counter und das im Test nachgestellte Pack Toggle).
+	 */
+	private static void testOnboarding(ClientGameTestContext context) {
+		context.waitForScreen(OnboardingScreen.class);
+		context.waitTicks(10);
+		expectStep(context, -1);
+		context.takeScreenshot("onboarding-1-willkommen");
+
+		// Mit der Pfeiltaste durch alle Seiten: 3 von Entity Counter, 2 von Pack Toggle.
+		for (int step = 0; step < 5; step++) {
+			context.getInput().pressKey(GLFW.GLFW_KEY_RIGHT);
+			context.waitTicks(5);
+			expectStep(context, step);
+			context.takeScreenshot("onboarding-" + (step + 2) + "-schritt");
+		}
+
+		// Zurück geht auch, über die Mod-Grenze hinweg.
+		context.getInput().pressKey(GLFW.GLFW_KEY_LEFT);
+		context.getInput().pressKey(GLFW.GLFW_KEY_LEFT);
+		context.waitTicks(5);
+		expectStep(context, 2);
+		context.getInput().pressKey(GLFW.GLFW_KEY_RIGHT);
+		context.getInput().pressKey(GLFW.GLFW_KEY_RIGHT);
+		context.waitTicks(5);
+		expectStep(context, 4);
+
+		// Auf der letzten Seite schließt "Weiter" den Screen und merkt sich beide Mods als gesehen.
+		context.getInput().pressKey(GLFW.GLFW_KEY_RIGHT);
+		context.waitTicks(10);
+		if (context.computeOnClient(c -> c.screen instanceof OnboardingScreen)) {
+			throw new AssertionError("Der Tutorial-Screen sollte nach der letzten Seite geschlossen sein");
+		}
+		String seen;
+		try {
+			seen = Files.readString(FabricLoader.getInstance().getConfigDir().resolve("kclucas-mods.json"));
+		} catch (IOException e) {
+			throw new AssertionError("kclucas-mods.json wurde nicht geschrieben", e);
+		}
+		if (!seen.contains("entitycounter") || !seen.contains("packtoggle")) {
+			throw new AssertionError("Nicht beide Mods als gesehen vermerkt: " + seen);
+		}
+	}
+
+	private static void expectStep(ClientGameTestContext context, int expected) {
+		int actual = context.computeOnClient(c ->
+				c.screen instanceof OnboardingScreen screen ? screen.getStepIndex() : Integer.MIN_VALUE);
+		if (actual != expected) {
+			throw new AssertionError("Tutorial: erwartet Seite " + expected + ", ist aber " + actual);
 		}
 	}
 

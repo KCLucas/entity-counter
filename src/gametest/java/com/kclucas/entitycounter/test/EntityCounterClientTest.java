@@ -6,6 +6,7 @@ import com.kclucas.entitycounter.client.EntityCounterHud;
 import com.kclucas.entitycounter.client.EntityScan;
 import com.kclucas.entitycounter.client.HudPositionScreen;
 import com.kclucas.entitycounter.client.TargetMode;
+import com.kclucas.entitycounter.client.onboarding.Onboarding;
 import com.kclucas.entitycounter.client.onboarding.OnboardingScreen;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
@@ -233,14 +234,81 @@ public class EntityCounterClientTest implements FabricClientGameTest {
 		if (context.computeOnClient(c -> c.screen instanceof OnboardingScreen)) {
 			throw new AssertionError("Der Tutorial-Screen sollte nach der letzten Seite geschlossen sein");
 		}
-		String seen;
-		try {
-			seen = Files.readString(FabricLoader.getInstance().getConfigDir().resolve("kclucas-mods.json"));
-		} catch (IOException e) {
-			throw new AssertionError("kclucas-mods.json wurde nicht geschrieben", e);
+		String seen = readSeen();
+		if (!seen.contains("\"entitycounter\": \"" + MOD_VERSION + "\"") || !seen.contains("packtoggle")) {
+			throw new AssertionError("Nicht beide Mods mit ihrer Version als gesehen vermerkt: " + seen);
 		}
-		if (!seen.contains("entitycounter") || !seen.contains("packtoggle")) {
-			throw new AssertionError("Nicht beide Mods als gesehen vermerkt: " + seen);
+
+		// Update: Zuletzt gesehen war 1.3.0 - jetzt kommt nur "Was ist neu" mit allen Versionen seitdem, keine Tour.
+		writeSeen("{\"modVersions\": {\"entitycounter\": \"1.3.0\", \"packtoggle\": \"0\"}}");
+		context.runOnClient(c -> Onboarding.showPending());
+		context.waitForScreen(OnboardingScreen.class);
+		context.waitTicks(5);
+		expectStep(context, -1);
+		context.takeScreenshot("onboarding-update-1-uebersicht");
+		context.getInput().pressKey(GLFW.GLFW_KEY_RIGHT);
+		context.waitTicks(5);
+		expectStep(context, 0);
+		if (!context.computeOnClient(c -> c.screen instanceof OnboardingScreen screen && screen.isNewsStep())) {
+			throw new AssertionError("Nach einem Update sollte die Seite \"Was ist neu\" kommen, nicht die Tour");
+		}
+		context.takeScreenshot("onboarding-update-2-was-ist-neu");
+		context.getInput().pressKey(GLFW.GLFW_KEY_RIGHT);
+		context.waitTicks(10);
+		if (context.computeOnClient(c -> c.screen instanceof OnboardingScreen)) {
+			throw new AssertionError("Nach den Neuigkeiten sollte der Screen geschlossen sein");
+		}
+		if (!readSeen().contains("\"entitycounter\": \"" + MOD_VERSION + "\"")) {
+			throw new AssertionError("Neue Version nicht als gesehen vermerkt: " + readSeen());
+		}
+
+		// Gleiche Version: nichts zu zeigen.
+		context.runOnClient(c -> Onboarding.showPending());
+		context.waitTicks(5);
+		if (context.computeOnClient(c -> c.screen instanceof OnboardingScreen)) {
+			throw new AssertionError("Ohne neue Version darf nichts erscheinen");
+		}
+
+		// Umstieg von der alten Datei config/kclucas-mods.json: Version unbekannt, also nur die neuesten Änderungen.
+		try {
+			Files.delete(Onboarding.seenFilePath());
+			Files.writeString(FabricLoader.getInstance().getConfigDir().resolve("kclucas-mods.json"),
+					"{\"tutorialsSeen\": {\"entitycounter\": 1, \"packtoggle\": 1}}");
+		} catch (IOException e) {
+			throw new AssertionError(e);
+		}
+		context.runOnClient(c -> Onboarding.showPending());
+		context.waitForScreen(OnboardingScreen.class);
+		context.getInput().pressKey(GLFW.GLFW_KEY_RIGHT);
+		context.waitTicks(5);
+		if (!context.computeOnClient(c -> c.screen instanceof OnboardingScreen screen && screen.isNewsStep())) {
+			throw new AssertionError("Nach dem Umstieg sollten die Neuigkeiten kommen");
+		}
+		context.takeScreenshot("onboarding-update-3-umstieg");
+		context.getInput().pressKey(GLFW.GLFW_KEY_ESCAPE);
+		context.waitTicks(10);
+		if (context.computeOnClient(c -> c.screen instanceof OnboardingScreen)
+				|| !readSeen().contains("\"entitycounter\": \"" + MOD_VERSION + "\"")) {
+			throw new AssertionError("Escape sollte schließen und die Version merken: " + readSeen());
+		}
+	}
+
+	private static final String MOD_VERSION = FabricLoader.getInstance().getModContainer(EntityCounterClient.MOD_ID)
+			.orElseThrow().getMetadata().getVersion().getFriendlyString();
+
+	private static String readSeen() {
+		try {
+			return Files.readString(Onboarding.seenFilePath());
+		} catch (IOException e) {
+			throw new AssertionError("config/KCMods/seen.json wurde nicht geschrieben", e);
+		}
+	}
+
+	private static void writeSeen(String json) {
+		try {
+			Files.writeString(Onboarding.seenFilePath(), json);
+		} catch (IOException e) {
+			throw new AssertionError(e);
 		}
 	}
 

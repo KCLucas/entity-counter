@@ -21,7 +21,6 @@ public class TestTutorials implements ClientModInitializer {
 				Component.literal("Pack Toggle"),
 				Component.literal("Switches all your resource packs off and back on in the right order."),
 				Identifier.fromNamespaceAndPath(NAMESPACE, "icon.png"),
-				1,
 				List.of(
 						new Onboarding.Page(
 								Component.literal("Save your pack order"),
@@ -32,6 +31,7 @@ public class TestTutorials implements ClientModInitializer {
 								Component.literal("Take them out, put them back"),
 								Component.literal("\"Remove packs\" leaves only the default look. \"Add packs\" "
 										+ "brings everything back in the saved order. Click Done to apply."),
-								Identifier.fromNamespaceAndPath(NAMESPACE, "textures/tutorial/switch.png")))));
+								Identifier.fromNamespaceAndPath(NAMESPACE, "textures/tutorial/switch.png"))),
+				List.of()));
 	}
 }

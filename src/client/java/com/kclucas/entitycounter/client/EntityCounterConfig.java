@@ -3,7 +3,7 @@ package com.kclucas.entitycounter.client;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonParseException;
-import net.fabricmc.loader.api.FabricLoader;
+import com.kclucas.entitycounter.client.onboarding.KcFiles;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,7 +17,7 @@ public class EntityCounterConfig {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(EntityCounterClient.MOD_ID);
 	private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-	private static final Path PATH = FabricLoader.getInstance().getConfigDir().resolve("entitycounter.json");
+	private static final Path PATH = KcFiles.file(EntityCounterClient.MOD_ID, "config.json", "entitycounter.json");
 
 	/** Den gezählten Block in der Welt grün markieren. */
 	public boolean highlightBlock = true;

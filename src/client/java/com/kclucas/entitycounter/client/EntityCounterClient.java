@@ -63,14 +63,13 @@ public class EntityCounterClient implements ClientModInitializer {
 		Onboarding.register(createTutorial());
 	}
 
-	/** Die kurze Tour, die beim ersten Start in einem Profil erscheint. */
+	/** Die kurze Tour beim ersten Start in einem Profil, dazu was in welcher Version neu ist (neueste zuerst). */
 	private static Onboarding.Tutorial createTutorial() {
 		Component toggleKeyName = Component.keybind("key.entitycounter.toggle").withStyle(ChatFormatting.YELLOW);
 		return new Onboarding.Tutorial(MOD_ID,
 				Component.literal("Entity Counter"),
 				Component.translatable("entitycounter.tutorial.description"),
 				Identifier.fromNamespaceAndPath(MOD_ID, "icon.png"),
-				1,
 				List.of(
 						new Onboarding.Page(
 								Component.translatable("entitycounter.tutorial.count.title"),
@@ -83,7 +82,14 @@ public class EntityCounterClient implements ClientModInitializer {
 						new Onboarding.Page(
 								Component.translatable("entitycounter.tutorial.settings.title"),
 								Component.translatable("entitycounter.tutorial.settings.text"),
-								Identifier.fromNamespaceAndPath(MOD_ID, "textures/tutorial/settings.png"))));
+								Identifier.fromNamespaceAndPath(MOD_ID, "textures/tutorial/settings.png"))),
+				List.of(
+						new Onboarding.Release("1.4.0", List.of(
+								Component.translatable("entitycounter.news.1_4_0.folder"),
+								Component.translatable("entitycounter.news.1_4_0.news"))),
+						new Onboarding.Release("1.3.1", List.of(
+								Component.translatable("entitycounter.news.1_3_1.debug"),
+								Component.translatable("entitycounter.news.1_3_1.menu")))));
 	}
 
 	private void onClientTick(Minecraft client) {

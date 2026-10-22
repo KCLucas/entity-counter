@@ -1,6 +1,7 @@
 package com.kclucas.entitycounter.test;
 
 import com.kclucas.entitycounter.client.EntityCounterClient;
+import com.kclucas.entitycounter.client.EntityCounterConfig;
 import com.kclucas.entitycounter.client.EntityCounterConfigScreen;
 import com.kclucas.entitycounter.client.EntityCounterHud;
 import com.kclucas.entitycounter.client.EntityScan;
@@ -21,6 +22,8 @@ import org.lwjgl.glfw.GLFW;
 
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
 
 /**
  * Baut eine kleine Kammer hinter Glas, setzt Entities in genau einen Block und prüft,
@@ -143,16 +146,27 @@ public class EntityCounterClientTest implements FabricClientGameTest {
 			server.runCommand("summon minecraft:minecart " + AT + " {NoGravity:1b}");
 			server.runCommand("summon minecraft:item " + AT
 					+ " {Item:{id:\"minecraft:diamond\",count:5},PickupDelay:32767,NoGravity:1b}");
+			// Zwei verschiedene Tränke: gleiches Item, andere Trankart - müssen getrennt gezählt werden.
+			for (String potion : List.of("swiftness", "healing")) {
+				server.runCommand("summon minecraft:item " + AT + " {Item:{id:\"minecraft:potion\",count:1,"
+						+ "components:{\"minecraft:potion_contents\":{potion:\"minecraft:" + potion + "\"}}},"
+						+ "PickupDelay:32767,NoGravity:1b}");
+			}
 			context.waitTicks(40);
 
 			scan = context.computeOnClient(c -> EntityCounterClient.getScan());
-			// 15 Armadillos + 3 Hühner + Slime + Lore + ein Stapel aus 5 Diamanten.
-			expect(scan, 25, 5);
+			// 15 Armadillos + 3 Hühner + Slime + Lore + ein Stapel aus 5 Diamanten + zwei einzelne Tränke.
+			expect(scan, 27, 7);
 			EntityScan.Entry diamonds = scan.entries().stream()
-					.filter(e -> e.type() == EntityType.ITEM).findFirst().orElseThrow();
-			if (diamonds.count() != 5 || !diamonds.name().getString().equals("Diamond")) {
-				throw new AssertionError("Erwartet \"Diamond: 5\", bekommen: "
-						+ diamonds.name().getString() + ": " + diamonds.count());
+					.filter(e -> e.name().getString().equals("Diamond")).findFirst().orElse(null);
+			if (diamonds == null || diamonds.count() != 5) {
+				throw new AssertionError("Erwartet \"Diamond: 5\", bekommen: " + scan.entries());
+			}
+			List<String> potions = scan.entries().stream()
+					.filter(e -> e.type() == EntityType.ITEM && e.count() == 1)
+					.map(e -> e.name().getString()).sorted().toList();
+			if (!potions.equals(List.of("Potion of Healing", "Potion of Swiftness"))) {
+				throw new AssertionError("Tränke nicht getrennt gezählt: " + potions);
 			}
 			calm(context);
 			context.takeScreenshot("entitycounter-2-gemischt");
@@ -197,6 +211,18 @@ public class EntityCounterClientTest implements FabricClientGameTest {
 			if (context.computeOnClient(c -> EntityCounterClient.isEnabled())) {
 				throw new AssertionError("F7 hat den Counter nicht ausgeschaltet");
 			}
+		}
+
+		// Von Hand verstellte Position in der Datei: wird beim Laden auf den Bildschirm begrenzt.
+		try {
+			Path file = FabricLoader.getInstance().getConfigDir().resolve("KCMods/entitycounter/config.json");
+			Files.writeString(file, "{\"hudX\": 5.0, \"hudY\": -2.0}");
+		} catch (IOException e) {
+			throw new AssertionError(e);
+		}
+		EntityCounterConfig loaded = EntityCounterConfig.load();
+		if (loaded.hudX != 1.0F || loaded.hudY != 0.0F) {
+			throw new AssertionError("Position nicht begrenzt: " + loaded.hudX + " / " + loaded.hudY);
 		}
 	}
 

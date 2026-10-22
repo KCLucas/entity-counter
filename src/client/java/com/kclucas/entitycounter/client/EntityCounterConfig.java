@@ -39,6 +39,9 @@ public class EntityCounterConfig {
 					if (config.targetMode == null) {
 						config.targetMode = TargetMode.AUTO;
 					}
+					// Von Hand eingetragene Werte wie 5 oder -1 würden die Anzeige aus dem Bild schieben.
+					config.hudX = clampPosition(config.hudX);
+					config.hudY = clampPosition(config.hudY);
 					return config;
 				}
 			} catch (IOException | JsonParseException e) {
@@ -46,6 +49,10 @@ public class EntityCounterConfig {
 			}
 		}
 		return new EntityCounterConfig();
+	}
+
+	private static float clampPosition(float value) {
+		return Float.isNaN(value) ? 0.0F : Math.clamp(value, 0.0F, 1.0F);
 	}
 
 	public void save() {

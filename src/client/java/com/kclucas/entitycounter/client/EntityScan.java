@@ -9,6 +9,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.projectile.ProjectileUtil;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
@@ -43,6 +44,19 @@ public record EntityScan(@Nullable BlockPos pos, List<Entry> entries, int total)
 	public record Entry(EntityType<?> type, Component name, Entity sample, int count) {
 	}
 
+	/** Gruppier-Schlüssel für liegende Items: gleich bei gleichem Item mit gleichen Komponenten, egal wie viele. */
+	private record ItemKind(ItemStack stack) {
+		@Override
+		public boolean equals(Object other) {
+			return other instanceof ItemKind kind && ItemStack.isSameItemSameComponents(this.stack, kind.stack);
+		}
+
+		@Override
+		public int hashCode() {
+			return ItemStack.hashItemAndComponents(this.stack);
+		}
+	}
+
 	public static EntityScan compute(Minecraft client, TargetMode mode) {
 		LocalPlayer player = client.player;
 		ClientLevel level = client.level;
@@ -50,26 +64,30 @@ public record EntityScan(@Nullable BlockPos pos, List<Entry> entries, int total)
 			return NONE;
 		}
 
+		// Das eigene Boot oder Minecart zählt so wenig wie der Spieler selbst - sonst träfe der Blick beim Fahren
+		// nach unten immer das eigene Fahrzeug.
+		Entity ownVehicle = player.getRootVehicle();
 		Map<BlockPos, List<Entity>> byBlock = new HashMap<>();
 		for (Entity entity : level.entitiesForRendering()) {
-			if (entity == player || entity.isRemoved() || entity.isSpectator()) {
+			if (entity == player || entity == ownVehicle || entity.isRemoved() || entity.isSpectator()) {
 				continue;
 			}
 			byBlock.computeIfAbsent(entity.blockPosition(), p -> new ArrayList<>()).add(entity);
 		}
 
 		BlockPos target = mode == TargetMode.AUTO
-				? findAutoTarget(player, level, byBlock)
+				? findAutoTarget(player, level, byBlock, ownVehicle)
 				: findCrosshairTarget(player, level, mode);
 		if (target == null) {
 			return NONE;
 		}
 
 		// Mehrere gleiche Items verschmelzen im Spiel zu einem einzigen Item-Entity mit Stapelgröße.
-		// Deshalb gruppieren wir Items nach Item-Art und zählen die Stapelgröße statt der Entities.
+		// Deshalb gruppieren wir Items nach Item samt Komponenten (Trankart, Verzauberung, Inhalt ...)
+		// und zählen die Stapelgröße statt der Entities.
 		Map<Object, List<Entity>> groups = new LinkedHashMap<>();
 		for (Entity entity : byBlock.getOrDefault(target, List.of())) {
-			Object key = entity instanceof ItemEntity item ? item.getItem().getItem() : entity.getType();
+			Object key = entity instanceof ItemEntity item ? new ItemKind(item.getItem()) : entity.getType();
 			groups.computeIfAbsent(key, k -> new ArrayList<>()).add(entity);
 		}
 
@@ -80,7 +98,8 @@ public record EntityScan(@Nullable BlockPos pos, List<Entry> entries, int total)
 			Component name;
 			int count;
 			if (first instanceof ItemEntity item) {
-				name = item.getItem().getItemName();
+				// Mit eigenem Namen (Amboss) steht der da, sonst der normale wie "Trank der Schnelligkeit".
+				name = item.getItem().getHoverName();
 				count = 0;
 				for (Entity entity : group) {
 					count += ((ItemEntity) entity).getItem().getCount();
@@ -117,7 +136,7 @@ public record EntityScan(@Nullable BlockPos pos, List<Entry> entries, int total)
 	}
 
 	private static @Nullable BlockPos findAutoTarget(
-			LocalPlayer player, ClientLevel level, Map<BlockPos, List<Entity>> byBlock) {
+			LocalPlayer player, ClientLevel level, Map<BlockPos, List<Entity>> byBlock, Entity ownVehicle) {
 		Vec3 eye = player.getEyePosition(1.0F);
 		Vec3 look = player.getViewVector(1.0F);
 
@@ -147,7 +166,7 @@ public record EntityScan(@Nullable BlockPos pos, List<Entry> entries, int total)
 		Vec3 end = eye.add(look.scale(reach));
 		AABB searchBox = player.getBoundingBox().expandTowards(look.scale(reach)).inflate(1.0);
 		EntityHitResult hit = ProjectileUtil.getEntityHitResult(
-				player, eye, end, searchBox, e -> !e.isSpectator(), reach * reach);
+				player, eye, end, searchBox, e -> !e.isSpectator() && e != ownVehicle, reach * reach);
 
 		if (hit != null) {
 			return hit.getEntity().blockPosition();

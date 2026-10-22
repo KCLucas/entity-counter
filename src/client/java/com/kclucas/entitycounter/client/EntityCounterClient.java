@@ -84,6 +84,10 @@ public class EntityCounterClient implements ClientModInitializer {
 								Component.translatable("entitycounter.tutorial.settings.text"),
 								Identifier.fromNamespaceAndPath(MOD_ID, "textures/tutorial/settings.png"))),
 				List.of(
+						new Onboarding.Release("1.4.1", List.of(
+								Component.translatable("entitycounter.news.1_4_1.items"),
+								Component.translatable("entitycounter.news.1_4_1.vehicle"),
+								Component.translatable("entitycounter.news.1_4_1.position"))),
 						new Onboarding.Release("1.4.0", List.of(
 								Component.translatable("entitycounter.news.1_4_0.folder"),
 								Component.translatable("entitycounter.news.1_4_0.news"))),

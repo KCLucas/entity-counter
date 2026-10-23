@@ -1,5 +1,6 @@
 package com.kclucas.entitycounter.client;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
@@ -98,7 +99,7 @@ public class HudPositionScreen extends Screen {
 		if (super.mouseClicked(event, doubleClick)) {
 			return true;
 		}
-		if (event.button() == 0 && this.bounds != null && this.bounds.contains(event.x(), event.y())) {
+		if (event.button() == InputConstants.MOUSE_BUTTON_LEFT && this.bounds != null && this.bounds.contains(event.x(), event.y())) {
 			this.dragging = true;
 			this.grabX = event.x() - this.bounds.x();
 			this.grabY = event.y() - this.bounds.y();
@@ -120,7 +121,7 @@ public class HudPositionScreen extends Screen {
 
 	@Override
 	public boolean mouseReleased(MouseButtonEvent event) {
-		if (this.dragging && event.button() == 0) {
+		if (this.dragging && event.button() == InputConstants.MOUSE_BUTTON_LEFT) {
 			this.dragging = false;
 			return true;
 		}

@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.4.2
+- Lowered the required Fabric Loader version to 0.19.5, so the mod no longer crashes on launch with NoRisk Client and other launchers on an older loader
+
 ## 1.4.1
 - Fixed: dropped items of the same kind but with different contents (e.g. a Potion of Swiftness and a Potion of Healing) are no longer merged into one line
 - Fixed: the boat or minecart you ride is no longer counted

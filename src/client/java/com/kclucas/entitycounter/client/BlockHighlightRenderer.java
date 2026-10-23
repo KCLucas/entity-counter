@@ -2,12 +2,10 @@ package com.kclucas.entitycounter.client;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.ShapeRenderer;
+import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
+import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.core.BlockPos;
-import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.Shapes;
 import org.joml.Matrix4f;
@@ -19,35 +17,35 @@ public final class BlockHighlightRenderer {
 	private static final int LINE_COLOR = 0xFF3CFF5A;
 	private static final float LINE_WIDTH = 3.0F;
 	/** Minimal größer als der Block, damit die Flächen nicht mit seinen Seiten flimmern. */
-	private static final double INFLATE = 0.004;
+	private static final float INFLATE = 0.004F;
 
 	private BlockHighlightRenderer() {
 	}
 
-	public static void render(WorldRenderContext context, BlockPos pos) {
-		PoseStack poseStack = context.matrices();
-		MultiBufferSource buffers = context.consumers();
-		if (poseStack == null || buffers == null) {
-			return;
-		}
+	public static void render(LevelRenderContext context, BlockPos pos) {
+		PoseStack poseStack = context.poseStack();
+		Vec3 camera = context.levelState().cameraRenderState.pos;
+		SubmitNodeCollector collector = context.submitNodeCollector();
 
-		Vec3 camera = context.worldState().cameraRenderState.pos;
-		AABB box = new AABB(pos).inflate(INFLATE);
-		float x1 = (float) (box.minX - camera.x), y1 = (float) (box.minY - camera.y), z1 = (float) (box.minZ - camera.z);
-		float x2 = (float) (box.maxX - camera.x), y2 = (float) (box.maxY - camera.y), z2 = (float) (box.maxZ - camera.z);
+		// Alles relativ zur Blockecke zeichnen, die Verschiebung zur Kamera steckt in der Matrix.
+		poseStack.pushPose();
+		poseStack.translate(pos.getX() - camera.x, pos.getY() - camera.y, pos.getZ() - camera.z);
 
-		Matrix4f m = poseStack.last().pose();
-		VertexConsumer fill = buffers.getBuffer(RenderTypes.debugFilledBox());
-		quad(fill, m, x1, y1, z1, x2, y1, z1, x2, y1, z2, x1, y1, z2); // unten
-		quad(fill, m, x1, y2, z1, x1, y2, z2, x2, y2, z2, x2, y2, z1); // oben
-		quad(fill, m, x1, y1, z1, x1, y2, z1, x2, y2, z1, x2, y1, z1); // Norden
-		quad(fill, m, x1, y1, z2, x2, y1, z2, x2, y2, z2, x1, y2, z2); // Süden
-		quad(fill, m, x1, y1, z1, x1, y1, z2, x1, y2, z2, x1, y2, z1); // Westen
-		quad(fill, m, x2, y1, z1, x2, y2, z1, x2, y2, z2, x2, y1, z2); // Osten
+		float a = -INFLATE;
+		float b = 1.0F + INFLATE;
+		collector.submitCustomGeometry(poseStack, RenderTypes.debugFilledBox(), (pose, fill) -> {
+			Matrix4f m = pose.pose();
+			quad(fill, m, a, a, a, b, a, a, b, a, b, a, a, b); // unten
+			quad(fill, m, a, b, a, a, b, b, b, b, b, b, b, a); // oben
+			quad(fill, m, a, a, a, a, b, a, b, b, a, b, a, a); // Norden
+			quad(fill, m, a, a, b, b, a, b, b, b, b, a, b, b); // Süden
+			quad(fill, m, a, a, a, a, a, b, a, b, b, a, b, a); // Westen
+			quad(fill, m, b, a, a, b, b, a, b, b, b, b, a, b); // Osten
+		});
+		collector.submitShapeOutline(poseStack, Shapes.box(a, a, a, b, b, b), RenderTypes.lines(),
+				LINE_COLOR, LINE_WIDTH, false);
 
-		VertexConsumer lines = buffers.getBuffer(RenderTypes.lines());
-		ShapeRenderer.renderShape(poseStack, lines, Shapes.create(box),
-				-camera.x, -camera.y, -camera.z, LINE_COLOR, LINE_WIDTH);
+		poseStack.popPose();
 	}
 
 	/** Eine Fläche, in beiden Drehrichtungen, damit sie von innen und außen sichtbar ist. */

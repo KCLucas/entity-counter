@@ -3,8 +3,8 @@ package com.kclucas.entitycounter.client;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.renderer.LightTexture;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.util.LightCoordsUtil;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.client.renderer.entity.state.LivingEntityRenderState;
 import net.minecraft.core.BlockPos;
@@ -48,7 +48,7 @@ public final class EntityCounterHud {
 		}
 	}
 
-	public static void render(GuiGraphics graphics, DeltaTracker deltaTracker) {
+	public static void render(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker) {
 		if (!EntityCounterClient.isEnabled()) {
 			return;
 		}
@@ -84,15 +84,15 @@ public final class EntityCounterHud {
 	 * die so etwas immer anhaben, nie zu sehen.
 	 */
 	public static boolean isHidden(Minecraft client) {
-		return client.options.hideGui || client.debugEntries.isOverlayVisible()
-				|| client.screen instanceof HudPositionScreen;
+		return client.gui.hud.isHidden() || client.debugEntries.isOverlayVisible()
+				|| client.gui.screen() instanceof HudPositionScreen;
 	}
 
 	/**
 	 * Zeichnet die Anzeige an der Position {@code fractionX}/{@code fractionY} (Anteil des freien Platzes, 0 bis 1)
 	 * und gibt zurück, wo sie gelandet ist.
 	 */
-	public static Bounds renderPanel(GuiGraphics graphics, Minecraft client, @Nullable Component subtitle,
+	public static Bounds renderPanel(GuiGraphicsExtractor graphics, Minecraft client, @Nullable Component subtitle,
 			List<Row> rows, boolean hasTarget, int totalCount, float fractionX, float fractionY) {
 		Font font = client.font;
 		Component title = Component.translatable("entitycounter.hud.title");
@@ -137,15 +137,15 @@ public final class EntityCounterHud {
 
 		int x = left + PADDING;
 		int y = top + PADDING;
-		graphics.drawString(font, title, x, y, COLOR_TITLE, true);
+		graphics.text(font, title, x, y, COLOR_TITLE, true);
 		y += LINE_HEIGHT;
 		if (subtitle != null) {
-			graphics.drawString(font, subtitle, x, y, COLOR_MUTED, true);
+			graphics.text(font, subtitle, x, y, COLOR_MUTED, true);
 			y += LINE_HEIGHT;
 		}
 
 		if (showEmpty) {
-			graphics.drawString(font, empty, x, y, COLOR_MUTED, true);
+			graphics.text(font, empty, x, y, COLOR_MUTED, true);
 			return bounds;
 		}
 		if (rows.isEmpty()) {
@@ -158,23 +158,23 @@ public final class EntityCounterHud {
 			if (row.entity() != null) {
 				renderIcon(graphics, client, row.entity(), x, y);
 			} else {
-				graphics.renderItem(row.icon(), x, y);
+				graphics.item(row.icon(), x, y);
 			}
-			graphics.drawString(font, texts.get(i), x + ICON_SIZE + 4, y + (ICON_SIZE - 8) / 2, COLOR_TEXT, true);
+			graphics.text(font, texts.get(i), x + ICON_SIZE + 4, y + (ICON_SIZE - 8) / 2, COLOR_TEXT, true);
 			y += ROW_HEIGHT;
 		}
 
 		if (showTotal) {
 			y += 2;
-			graphics.drawString(font, total, x, y, COLOR_MUTED, true);
+			graphics.text(font, total, x, y, COLOR_MUTED, true);
 		}
 		return bounds;
 	}
 
 	/** Zeichnet das Bild eines Entities: bei Items das Item selbst, sonst das 3D-Modell wie im Inventar. */
-	private static void renderIcon(GuiGraphics graphics, Minecraft client, Entity entity, int x, int y) {
+	private static void renderIcon(GuiGraphicsExtractor graphics, Minecraft client, Entity entity, int x, int y) {
 		if (entity instanceof ItemEntity itemEntity) {
-			graphics.renderItem(itemEntity.getItem(), x, y);
+			graphics.item(itemEntity.getItem(), x, y);
 			return;
 		}
 
@@ -186,8 +186,8 @@ public final class EntityCounterHud {
 			return;
 		}
 
-		state.lightCoords = LightTexture.FULL_BRIGHT;
-		state.shadowPieces.clear();
+		state.lightCoords = LightCoordsUtil.FULL_BRIGHT;
+		state.shadowRadius = 0.0F;
 		state.outlineColor = EntityRenderState.NO_OUTLINE;
 		state.nameTag = null;
 		state.displayFireAnimation = false;
@@ -212,14 +212,11 @@ public final class EntityCounterHud {
 		rotation.mul(cameraTilt);
 		Vector3f translation = new Vector3f(0.0F, state.boundingBoxHeight / 2.0F, 0.0F);
 
-		graphics.submitEntityRenderState(state, scale, translation, rotation, cameraTilt,
+		graphics.entity(state, scale, translation, rotation, cameraTilt,
 				x, y, x + ICON_SIZE, y + ICON_SIZE);
 	}
 
-	private static void renderSpawnEgg(GuiGraphics graphics, Entity entity, int x, int y) {
-		SpawnEggItem egg = SpawnEggItem.byId(entity.getType());
-		if (egg != null) {
-			graphics.renderItem(new ItemStack(egg), x, y);
-		}
+	private static void renderSpawnEgg(GuiGraphicsExtractor graphics, Entity entity, int x, int y) {
+		SpawnEggItem.byId(entity.getType()).ifPresent(egg -> graphics.item(new ItemStack(egg), x, y));
 	}
 }

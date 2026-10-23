@@ -1,5 +1,6 @@
 package com.kclucas.entitycounter.test;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import com.kclucas.entitycounter.client.EntityCounterClient;
 import com.kclucas.entitycounter.client.EntityCounterConfig;
 import com.kclucas.entitycounter.client.EntityCounterConfigScreen;
@@ -18,7 +19,7 @@ import net.minecraft.client.gui.components.debug.DebugScreenEntries;
 import net.minecraft.client.gui.components.debug.DebugScreenEntryStatus;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.EntityType;
-import org.lwjgl.glfw.GLFW;
+import net.minecraft.world.entity.EntityTypes;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -39,7 +40,7 @@ public class EntityCounterClientTest implements FabricClientGameTest {
 		context.getInput().resizeWindow(2560, 1440);
 		context.runOnClient(c -> {
 			c.options.guiScale().set(3);
-			c.resizeDisplay();
+			c.resizeGui();
 		});
 		testOnboarding(context);
 
@@ -53,7 +54,7 @@ public class EntityCounterClientTest implements FabricClientGameTest {
 			context.runOnClient(c -> {
 				c.options.fov().set(90);
 				c.options.guiScale().set(3);
-				c.resizeDisplay();
+				c.resizeGui();
 			});
 			server.runCommand("fill -7 200 -4 7 200 9 minecraft:smooth_stone");
 			server.runCommand("fill -7 200 7 7 205 9 minecraft:deepslate_bricks");
@@ -70,14 +71,14 @@ public class EntityCounterClientTest implements FabricClientGameTest {
 				server.runCommand("summon minecraft:armadillo " + AT + " {NoAI:1b,PersistenceRequired:1b}");
 			}
 			context.waitTicks(40);
-			world.getClientWorld().waitForChunksRender();
+			world.getConnection().waitForChunksRender();
 
 			if (context.computeOnClient(c -> EntityCounterClient.isEnabled())) {
 				throw new AssertionError("Counter sollte beim Start aus sein");
 			}
 			context.takeScreenshot("entitycounter-0-aus");
 
-			context.getInput().pressKey(GLFW.GLFW_KEY_F7);
+			context.getInput().pressKey(InputConstants.KEY_F7);
 			context.waitTicks(10);
 			if (!context.computeOnClient(c -> EntityCounterClient.isEnabled())) {
 				throw new AssertionError("F7 hat den Counter nicht eingeschaltet");
@@ -85,7 +86,7 @@ public class EntityCounterClientTest implements FabricClientGameTest {
 
 			EntityScan scan = context.computeOnClient(c -> EntityCounterClient.getScan());
 			expect(scan, 15, 1);
-			if (scan.entries().get(0).type() != EntityType.ARMADILLO || scan.entries().get(0).count() != 15) {
+			if (scan.entries().get(0).type() != EntityTypes.ARMADILLO || scan.entries().get(0).count() != 15) {
 				throw new AssertionError("Erwartet 15 Armadillos, bekommen: " + scan);
 			}
 			calm(context);
@@ -97,7 +98,7 @@ public class EntityCounterClientTest implements FabricClientGameTest {
 				c.debugEntries.setStatus(DebugScreenEntries.LOOKING_AT_ENTITY, DebugScreenEntryStatus.ALWAYS_ON);
 			});
 			context.waitTicks(10);
-			if (!context.computeOnClient(c -> c.gui.getDebugOverlay().showDebugScreen())
+			if (!context.computeOnClient(c -> c.getDebugOverlay().showDebugScreen())
 					|| context.computeOnClient(EntityCounterHud::isHidden)) {
 				throw new AssertionError("Mit dauerhaft eingeblendeten Debug-Einträgen muss die Anzeige sichtbar bleiben");
 			}
@@ -136,7 +137,7 @@ public class EntityCounterClientTest implements FabricClientGameTest {
 			context.waitTicks(5);
 			context.takeScreenshot("entitycounter-1d-einstellungen-geaendert");
 			context.runOnClient(c -> EntityCounterClient.getConfig().targetMode = TargetMode.AUTO);
-			context.runOnClient(c -> c.setScreen(null));
+			context.runOnClient(c -> c.gui.setScreen(null));
 			context.waitTicks(5);
 
 			for (int i = 0; i < 3; i++) {
@@ -163,7 +164,7 @@ public class EntityCounterClientTest implements FabricClientGameTest {
 				throw new AssertionError("Erwartet \"Diamond: 5\", bekommen: " + scan.entries());
 			}
 			List<String> potions = scan.entries().stream()
-					.filter(e -> e.type() == EntityType.ITEM && e.count() == 1)
+					.filter(e -> e.type() == EntityTypes.ITEM && e.count() == 1)
 					.map(e -> e.name().getString()).sorted().toList();
 			if (!potions.equals(List.of("Potion of Healing", "Potion of Swiftness"))) {
 				throw new AssertionError("Tränke nicht getrennt gezählt: " + potions);
@@ -177,11 +178,11 @@ public class EntityCounterClientTest implements FabricClientGameTest {
 			context.takeScreenshot("entitycounter-2b-verschieben-start");
 			context.getInput().setCursorPos(120, 90);
 			context.waitTicks(2);
-			context.getInput().holdMouse(GLFW.GLFW_MOUSE_BUTTON_LEFT);
+			context.getInput().holdMouse(InputConstants.MOUSE_BUTTON_LEFT);
 			context.waitTicks(2);
 			context.getInput().moveCursor(1400, 700);
 			context.waitTicks(2);
-			context.getInput().releaseMouse(GLFW.GLFW_MOUSE_BUTTON_LEFT);
+			context.getInput().releaseMouse(InputConstants.MOUSE_BUTTON_LEFT);
 			context.waitTicks(5);
 			float movedX = context.computeOnClient(c -> EntityCounterClient.getConfig().hudX);
 			float movedY = context.computeOnClient(c -> EntityCounterClient.getConfig().hudY);
@@ -189,7 +190,7 @@ public class EntityCounterClientTest implements FabricClientGameTest {
 				throw new AssertionError("Ziehen hat die Anzeige nicht wie erwartet verschoben: " + movedX + " / " + movedY);
 			}
 			context.takeScreenshot("entitycounter-2c-verschieben-gezogen");
-			context.runOnClient(c -> c.setScreen(null));
+			context.runOnClient(c -> c.gui.setScreen(null));
 			context.waitTicks(10);
 			context.takeScreenshot("entitycounter-2d-anzeige-verschoben");
 			context.runOnClient(c -> {
@@ -206,7 +207,7 @@ public class EntityCounterClientTest implements FabricClientGameTest {
 			}
 			context.takeScreenshot("entitycounter-3-kein-ziel");
 
-			context.getInput().pressKey(GLFW.GLFW_KEY_F7);
+			context.getInput().pressKey(InputConstants.KEY_F7);
 			context.waitTicks(10);
 			if (context.computeOnClient(c -> EntityCounterClient.isEnabled())) {
 				throw new AssertionError("F7 hat den Counter nicht ausgeschaltet");
@@ -238,26 +239,26 @@ public class EntityCounterClientTest implements FabricClientGameTest {
 
 		// Mit der Pfeiltaste durch alle Seiten: 3 von Entity Counter, 2 von Pack Toggle.
 		for (int step = 0; step < 5; step++) {
-			context.getInput().pressKey(GLFW.GLFW_KEY_RIGHT);
+			context.getInput().pressKey(InputConstants.KEY_RIGHT);
 			context.waitTicks(5);
 			expectStep(context, step);
 			context.takeScreenshot("onboarding-" + (step + 2) + "-schritt");
 		}
 
 		// Zurück geht auch, über die Mod-Grenze hinweg.
-		context.getInput().pressKey(GLFW.GLFW_KEY_LEFT);
-		context.getInput().pressKey(GLFW.GLFW_KEY_LEFT);
+		context.getInput().pressKey(InputConstants.KEY_LEFT);
+		context.getInput().pressKey(InputConstants.KEY_LEFT);
 		context.waitTicks(5);
 		expectStep(context, 2);
-		context.getInput().pressKey(GLFW.GLFW_KEY_RIGHT);
-		context.getInput().pressKey(GLFW.GLFW_KEY_RIGHT);
+		context.getInput().pressKey(InputConstants.KEY_RIGHT);
+		context.getInput().pressKey(InputConstants.KEY_RIGHT);
 		context.waitTicks(5);
 		expectStep(context, 4);
 
 		// Auf der letzten Seite schließt "Weiter" den Screen und merkt sich beide Mods als gesehen.
-		context.getInput().pressKey(GLFW.GLFW_KEY_RIGHT);
+		context.getInput().pressKey(InputConstants.KEY_RIGHT);
 		context.waitTicks(10);
-		if (context.computeOnClient(c -> c.screen instanceof OnboardingScreen)) {
+		if (context.computeOnClient(c -> c.gui.screen() instanceof OnboardingScreen)) {
 			throw new AssertionError("Der Tutorial-Screen sollte nach der letzten Seite geschlossen sein");
 		}
 		String seen = readSeen();
@@ -272,16 +273,16 @@ public class EntityCounterClientTest implements FabricClientGameTest {
 		context.waitTicks(5);
 		expectStep(context, -1);
 		context.takeScreenshot("onboarding-update-1-uebersicht");
-		context.getInput().pressKey(GLFW.GLFW_KEY_RIGHT);
+		context.getInput().pressKey(InputConstants.KEY_RIGHT);
 		context.waitTicks(5);
 		expectStep(context, 0);
-		if (!context.computeOnClient(c -> c.screen instanceof OnboardingScreen screen && screen.isNewsStep())) {
+		if (!context.computeOnClient(c -> c.gui.screen() instanceof OnboardingScreen screen && screen.isNewsStep())) {
 			throw new AssertionError("Nach einem Update sollte die Seite \"Was ist neu\" kommen, nicht die Tour");
 		}
 		context.takeScreenshot("onboarding-update-2-was-ist-neu");
-		context.getInput().pressKey(GLFW.GLFW_KEY_RIGHT);
+		context.getInput().pressKey(InputConstants.KEY_RIGHT);
 		context.waitTicks(10);
-		if (context.computeOnClient(c -> c.screen instanceof OnboardingScreen)) {
+		if (context.computeOnClient(c -> c.gui.screen() instanceof OnboardingScreen)) {
 			throw new AssertionError("Nach den Neuigkeiten sollte der Screen geschlossen sein");
 		}
 		if (!readSeen().contains("\"entitycounter\": \"" + MOD_VERSION + "\"")) {
@@ -291,7 +292,7 @@ public class EntityCounterClientTest implements FabricClientGameTest {
 		// Gleiche Version: nichts zu zeigen.
 		context.runOnClient(c -> Onboarding.showPending());
 		context.waitTicks(5);
-		if (context.computeOnClient(c -> c.screen instanceof OnboardingScreen)) {
+		if (context.computeOnClient(c -> c.gui.screen() instanceof OnboardingScreen)) {
 			throw new AssertionError("Ohne neue Version darf nichts erscheinen");
 		}
 
@@ -305,15 +306,15 @@ public class EntityCounterClientTest implements FabricClientGameTest {
 		}
 		context.runOnClient(c -> Onboarding.showPending());
 		context.waitForScreen(OnboardingScreen.class);
-		context.getInput().pressKey(GLFW.GLFW_KEY_RIGHT);
+		context.getInput().pressKey(InputConstants.KEY_RIGHT);
 		context.waitTicks(5);
-		if (!context.computeOnClient(c -> c.screen instanceof OnboardingScreen screen && screen.isNewsStep())) {
+		if (!context.computeOnClient(c -> c.gui.screen() instanceof OnboardingScreen screen && screen.isNewsStep())) {
 			throw new AssertionError("Nach dem Umstieg sollten die Neuigkeiten kommen");
 		}
 		context.takeScreenshot("onboarding-update-3-umstieg");
-		context.getInput().pressKey(GLFW.GLFW_KEY_ESCAPE);
+		context.getInput().pressKey(InputConstants.KEY_ESCAPE);
 		context.waitTicks(10);
-		if (context.computeOnClient(c -> c.screen instanceof OnboardingScreen)
+		if (context.computeOnClient(c -> c.gui.screen() instanceof OnboardingScreen)
 				|| !readSeen().contains("\"entitycounter\": \"" + MOD_VERSION + "\"")) {
 			throw new AssertionError("Escape sollte schließen und die Version merken: " + readSeen());
 		}
@@ -340,7 +341,7 @@ public class EntityCounterClientTest implements FabricClientGameTest {
 
 	private static void expectStep(ClientGameTestContext context, int expected) {
 		int actual = context.computeOnClient(c ->
-				c.screen instanceof OnboardingScreen screen ? screen.getStepIndex() : Integer.MIN_VALUE);
+				c.gui.screen() instanceof OnboardingScreen screen ? screen.getStepIndex() : Integer.MIN_VALUE);
 		if (actual != expected) {
 			throw new AssertionError("Tutorial: erwartet Seite " + expected + ", ist aber " + actual);
 		}
@@ -349,7 +350,7 @@ public class EntityCounterClientTest implements FabricClientGameTest {
 	/** Wartet, bis die Statusmeldung ausgeblendet ist, und leert den Chat – für aufgeräumte Screenshots. */
 	private static void calm(ClientGameTestContext context) {
 		context.waitTicks(80);
-		context.runOnClient(c -> c.gui.getChat().clearMessages(false));
+		context.runOnClient(c -> c.gui.hud.getChat().clearMessages(false));
 		context.waitTicks(5);
 	}
 

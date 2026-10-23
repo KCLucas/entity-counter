@@ -4,18 +4,17 @@ import com.kclucas.entitycounter.client.onboarding.Onboarding;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
+import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
-import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext;
-import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
+import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
+import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
-import org.lwjgl.glfw.GLFW;
 
 import java.util.List;
 
@@ -48,17 +47,17 @@ public class EntityCounterClient implements ClientModInitializer {
 	public void onInitializeClient() {
 		config = EntityCounterConfig.load();
 
-		toggleKey = KeyBindingHelper.registerKeyBinding(new KeyMapping(
-				"key.entitycounter.toggle", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_F7, CATEGORY));
-		settingsKey = KeyBindingHelper.registerKeyBinding(new KeyMapping(
-				"key.entitycounter.settings", InputConstants.Type.KEYSYM, InputConstants.UNKNOWN.getValue(), CATEGORY));
+		toggleKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(
+				"key.entitycounter.toggle", InputConstants.Type.KEYBOARD, InputConstants.KEY_F7, CATEGORY));
+		settingsKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(
+				"key.entitycounter.settings", InputConstants.Type.KEYBOARD, InputConstants.UNKNOWN.getValue(), CATEGORY));
 
 		ClientTickEvents.END_CLIENT_TICK.register(this::onClientTick);
 
 		HudElementRegistry.attachElementBefore(VanillaHudElements.CHAT,
 				Identifier.fromNamespaceAndPath(MOD_ID, "hud"), EntityCounterHud::render);
 
-		WorldRenderEvents.BEFORE_TRANSLUCENT.register(EntityCounterClient::highlightTarget);
+		LevelRenderEvents.COLLECT_SUBMITS.register(EntityCounterClient::highlightTarget);
 
 		Onboarding.register(createTutorial());
 	}
@@ -100,13 +99,13 @@ public class EntityCounterClient implements ClientModInitializer {
 		while (toggleKey.consumeClick()) {
 			enabled = !enabled;
 			if (client.player != null) {
-				client.player.displayClientMessage(Component.translatable(
-						enabled ? "entitycounter.toggle.on" : "entitycounter.toggle.off"), true);
+				client.player.sendOverlayMessage(Component.translatable(
+						enabled ? "entitycounter.toggle.on" : "entitycounter.toggle.off"));
 			}
 		}
 		while (settingsKey.consumeClick()) {
-			if (client.screen == null) {
-				client.setScreen(new EntityCounterConfigScreen(null));
+			if (client.gui.screen() == null) {
+				client.gui.setScreen(new EntityCounterConfigScreen(null));
 			}
 		}
 
@@ -119,7 +118,7 @@ public class EntityCounterClient implements ClientModInitializer {
 	}
 
 	/** Markiert den gerade gezählten Block in der Welt. */
-	private static void highlightTarget(WorldRenderContext context) {
+	private static void highlightTarget(LevelRenderContext context) {
 		BlockPos pos = scan.pos();
 		if (!enabled || !config.highlightBlock || pos == null) {
 			return;

@@ -20,6 +20,7 @@ import net.minecraft.client.gui.components.debug.DebugScreenEntryStatus;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EntityTypes;
+import net.minecraft.sounds.SoundSource;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -37,6 +38,8 @@ public class EntityCounterClientTest implements FabricClientGameTest {
 
 	@Override
 	public void runTest(ClientGameTestContext context) {
+		// Test-Client stumm: Lucas streamt oft nebenbei, Töne aus dem Testlauf sollen nicht durchkommen.
+		context.runOnClient(c -> c.options.getSoundSourceOptionInstance(SoundSource.MASTER).set(0.0));
 		context.getInput().resizeWindow(2560, 1440);
 		context.runOnClient(c -> {
 			c.options.guiScale().set(3);
